@@ -13,9 +13,9 @@ import { downloadFigmaSvgs } from './integrations/figma.js';
 import { isValidSvgPath, listSvgFilesInDirectory } from './integrations/svg-upload.js';
 import { PipelineStage, runPipeline } from './mcp/pipeline.js';
 
-const { Input, Select } = enquirer as any;
+const { Input, Select, Confirm } = enquirer as any;
 
-type MainMenuChoice = 'generate' | 'configure-llm';
+type MainMenuChoice = 'generate' | 'configure-llm' | 'configure-secrets' | 'configure-all' | 'exit';
 type RuntimeSecretKey = 'COPILOT_TOKEN' | 'FIGMA_TOKEN';
 type RuntimeSecrets = Partial<Record<RuntimeSecretKey, string>>;
 
@@ -57,6 +57,21 @@ const askMainMenuChoice = async (): Promise<MainMenuChoice> => {
         message: `Configurar IA (${getConfiguredModel()})`,
         hint: 'Ajustar modelo padrao',
       },
+      {
+        name: 'configure-secrets',
+        message: 'Configurar tokens e segredos',
+        hint: 'FIGMA_TOKEN / COPILOT_TOKEN',
+      },
+      {
+        name: 'configure-all',
+        message: 'Configurar tudo antes de gerar',
+        hint: 'Modelo + Tokens',
+      },
+      {
+        name: 'exit',
+        message: 'Sair',
+        hint: 'Fechar o CLI',
+      },
     ],
   }).run()) as MainMenuChoice;
 
@@ -83,7 +98,7 @@ const askSvgSelection = async (svgDir: string): Promise<string> => {
   return selectedFile;
 };
 
-const askSourceType = async (): Promise<'local' | 'figma'> => {
+const askSourceType = async (): Promise<'local' | 'figma' | 'back'> => {
   const choice = (await new Select({
     name: 'sourceType',
     message: 'Escolha a fonte do SVG',
@@ -96,8 +111,12 @@ const askSourceType = async (): Promise<'local' | 'figma'> => {
         name: 'figma',
         message: 'Baixar de um link do Figma',
       },
+      {
+        name: 'back',
+        message: '↩ Voltar ao menu principal',
+      },
     ],
-  }).run()) as 'local' | 'figma';
+  }).run()) as 'local' | 'figma' | 'back';
 
   return choice;
 };
@@ -154,6 +173,22 @@ const askOutputDir = async (defaultOutputDir: string): Promise<string> => {
   return path.resolve(outputValue.trim() || defaultOutputDir);
 };
 
+const askConfirm = async (messageText: string, initial = true): Promise<boolean> => {
+  return (await new Confirm({ name: 'confirm', message: messageText, initial }).run()) as boolean;
+};
+
+const showSummary = async (items: Record<string, string>): Promise<void> => {
+  const lines = Object.entries(items).map(([key, value]) => `${chalk.cyan(key)}: ${chalk.cyan(value)}`);
+  console.log(
+    boxen(lines.join('\n'), {
+      borderColor: 'magenta',
+      padding: 1,
+      margin: 1,
+      borderStyle: 'round',
+    })
+  );
+};
+
 const parseCliOutputDir = (): string | undefined => {
   const args = process.argv
     .slice(2)
@@ -195,10 +230,10 @@ const askFigmaUrl = async (): Promise<string> => {
   return figmaUrl.trim();
 };
 
-const askTokenValue = async (label: string): Promise<string> => {
+const askTokenValue = async (label: string): Promise<string | 'back'> => {
   const token = (await new Input({
     name: `${label}Token`,
-    message: `Informe o token do ${label}`,
+    message: `Informe o token do ${label} (ou deixe vazio para voltar)`,
   }).run()) as string;
 
   return token.trim();
@@ -331,7 +366,7 @@ const saveConfiguredModel = async (model: string): Promise<void> => {
   process.env.COPILOT_MODEL = model;
 };
 
-const configureLlmModel = async (): Promise<void> => {
+const configureLlmModel = async (): Promise<boolean> => {
   divider('Configuracao IA');
   const modelsLoading = loading('Buscando modelos de IA...');
   const models = await copilotRuntime.fetchModels();
@@ -339,6 +374,33 @@ const configureLlmModel = async (): Promise<void> => {
   const selectedModel = await askModelSelection(models);
   await saveConfiguredModel(selectedModel);
   await success(`Modelo salvo: ${selectedModel}`);
+  return true;
+};
+
+const configureFigmaToken = async (): Promise<boolean> => {
+  divider('Configuracao FIGMA');
+  await message('Vamos configurar seu FIGMA_TOKEN.');
+  const token = await askTokenValue('Figma');
+  if (!token || token === 'back') {
+    await message('Voltando ao menu principal...');
+    return false;
+  }
+  await persistSecret('FIGMA_TOKEN', token);
+  await success('FIGMA_TOKEN configurado com sucesso.');
+  return true;
+};
+
+const configureAll = async (): Promise<boolean> => {
+  divider('Configuracao Completa');
+  
+  const llmConfigured = await configureLlmModel();
+  if (!llmConfigured) return false;
+  
+  const figmaConfigured = await configureFigmaToken();
+  if (!figmaConfigured) return false;
+  
+  await success('Configuracao completa realizada com sucesso.');
+  return true;
 };
 
 const run = async (): Promise<void> => {
@@ -355,6 +417,27 @@ const run = async (): Promise<void> => {
       return;
     }
 
+    if (menuChoice === 'configure-secrets') {
+      const configured = await configureFigmaToken();
+      if (!configured) {
+        return;
+      }
+      return;
+    }
+
+    if (menuChoice === 'configure-all') {
+      const configured = await configureAll();
+      if (!configured) {
+        return;
+      }
+      return;
+    }
+
+    if (menuChoice === 'exit') {
+      await message('Saindo do MCP Frontend CLI. Ate a proxima!');
+      return;
+    }
+
     const defaultOutputDir = path.resolve(process.cwd(), 'output');
     const outputDirFromCli = parseCliOutputDir();
     const outputDir = outputDirFromCli ?? (await askOutputDir(defaultOutputDir));
@@ -365,6 +448,10 @@ const run = async (): Promise<void> => {
     await message(`IA configurada: ${llmModel}`);
 
     const sourceType = await askSourceType();
+    if (sourceType === 'back') {
+      await message('Retornando ao menu principal. Execute o CLI novamente para continuar.');
+      return;
+    }
     divider(sourceType === 'local' ? 'Origem Local' : 'Origem Figma');
     const assetsDir = path.resolve(process.cwd(), 'src');
     let svgFilePath: string;
@@ -403,6 +490,13 @@ const run = async (): Promise<void> => {
         svgFilePath = await askAssetSelection(assets);
       }
     }
+
+    await showSummary({
+      'Diretorio de saida': outputDir,
+      'Modelo IA': llmModel,
+      'Fonte do SVG': sourceType === 'local' ? 'SVG local' : 'Figma',
+      'SVG selecionado': svgFilePath,
+    });
 
     const sddPath = path.resolve(process.cwd(), 'src/docs/sdd.json');
 
