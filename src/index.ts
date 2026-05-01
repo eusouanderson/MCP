@@ -398,129 +398,167 @@ const configureAll = async (): Promise<boolean> => {
 };
 
 const run = async (): Promise<void> => {
-  let activeLoading: ReturnType<typeof loading> | undefined;
-
   try {
     printHeader();
-    divider('Inicio');
     await ensureCopilotConnection();
 
-    const menuChoice = await askMainMenuChoice();
-    if (menuChoice === 'configure-llm') {
-      await configureLlmModel();
-      return;
-    }
+    // Loop principal - mantém o CLI ativo até o usuário sair
+    let running = true;
+    while (running) {
+      let activeLoading: ReturnType<typeof loading> | undefined;
 
-    if (menuChoice === 'configure-secrets') {
-      const configured = await configureFigmaToken();
-      if (!configured) {
-        return;
+      try {
+        divider('Menu Principal');
+        const menuChoice = await askMainMenuChoice();
+
+      if (menuChoice === 'configure-llm') {
+        try {
+          await configureLlmModel();
+          await message('Voltando ao menu principal...');
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          await error(`Erro na configuração: ${errMsg}`);
+        }
+        continue;
       }
-      return;
-    }
 
-    if (menuChoice === 'configure-all') {
-      const configured = await configureAll();
-      if (!configured) {
-        return;
+      if (menuChoice === 'configure-secrets') {
+        try {
+          const configured = await configureFigmaToken();
+          if (configured) {
+            await message('Voltando ao menu principal...');
+          }
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          await error(`Erro na configuração: ${errMsg}`);
+        }
+        continue;
       }
-      return;
-    }
 
-    if (menuChoice === 'exit') {
-      await message('Saindo do MCP Frontend CLI. Ate a proxima!');
-      return;
-    }
-
-    const defaultOutputDir = path.resolve(process.cwd(), 'output');
-    const outputDirFromCli = parseCliOutputDir();
-    const outputDir = outputDirFromCli ?? (await askOutputDir(defaultOutputDir));
-    if (outputDirFromCli) {
-      await message(`Caminho de saida via CLI: ${outputDir}`);
-    }
-    const llmModel = getConfiguredModel();
-    await message(`IA configurada: ${llmModel}`);
-
-    const sourceType = await askSourceType();
-    if (sourceType === 'back') {
-      await message('Retornando ao menu principal. Execute o CLI novamente para continuar.');
-      return;
-    }
-    divider(sourceType === 'local' ? 'Origem Local' : 'Origem Figma');
-    const assetsDir = path.resolve(process.cwd(), 'src');
-    let svgFilePath: string;
-
-    if (sourceType === 'local') {
-      const svgDir = path.resolve(process.cwd(), 'src/svg');
-      svgFilePath = await askSvgSelection(svgDir);
-
-      if (!isValidSvgPath(svgFilePath)) {
-        throw new Error('Arquivo SVG invalido. Informe um caminho para arquivo com extensao .svg.');
+      if (menuChoice === 'configure-all') {
+        try {
+          const configured = await configureAll();
+          if (configured) {
+            await message('Voltando ao menu principal...');
+          }
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          await error(`Erro na configuração: ${errMsg}`);
+        }
+        continue;
       }
-    } else {
-      await ensureFigmaToken();
-      const figmaUrl = await askFigmaUrl();
-      activeLoading = loading('Baixando SVGs do Figma...');
 
-      const assets = await downloadFigmaSvgs({
-        figmaUrl,
-        assetsDir,
-        onProgress: (message) => {
+      if (menuChoice === 'exit') {
+        await message('Saindo do MCP Frontend CLI. Até a próxima!');
+        running = false;
+        continue;
+      }
+
+      // Fluxo de geração de template
+      try {
+        const defaultOutputDir = path.resolve(process.cwd(), 'output');
+        const outputDirFromCli = parseCliOutputDir();
+        const outputDir = outputDirFromCli ?? (await askOutputDir(defaultOutputDir));
+        if (outputDirFromCli) {
+          await message(`Caminho de saida via CLI: ${outputDir}`);
+        }
+        const llmModel = getConfiguredModel();
+        await message(`IA configurada: ${llmModel}`);
+
+        const sourceType = await askSourceType();
+        if (sourceType === 'back') {
+          await message('Voltando ao menu principal...');
+          continue;
+        }
+
+        divider(sourceType === 'local' ? 'Origem Local' : 'Origem Figma');
+        const assetsDir = path.resolve(process.cwd(), 'src');
+        let svgFilePath: string;
+
+        if (sourceType === 'local') {
+          const svgDir = path.resolve(process.cwd(), 'src/svg');
+          svgFilePath = await askSvgSelection(svgDir);
+
+          if (!isValidSvgPath(svgFilePath)) {
+            throw new Error('Arquivo SVG invalido. Informe um caminho para arquivo com extensao .svg.');
+          }
+        } else {
+          await ensureFigmaToken();
+          const figmaUrl = await askFigmaUrl();
+          activeLoading = loading('Baixando SVGs do Figma...');
+
+          const assets = await downloadFigmaSvgs({
+            figmaUrl,
+            assetsDir,
+            onProgress: (message) => {
+              activeLoading?.stop();
+              console.log(message);
+              activeLoading = loading('Processando...');
+            },
+          });
+
           activeLoading?.stop();
-          console.log(message);
-          activeLoading = loading('Processando...');
-        },
-      });
 
+          if (assets.length === 0) {
+            throw new Error('Nenhum SVG foi baixado do Figma.');
+          }
+
+          if (assets.length === 1) {
+            svgFilePath = assets[0].path;
+          } else {
+            svgFilePath = await askAssetSelection(assets);
+          }
+        }
+
+        await showSummary({
+          'Diretorio de saida': outputDir,
+          'Modelo IA': llmModel,
+          'Fonte do SVG': sourceType === 'local' ? 'SVG local' : 'Figma',
+          'SVG selecionado': svgFilePath,
+        });
+
+        const sddPath = path.resolve(process.cwd(), 'src/docs/sdd.json');
+
+        const result = await runPipeline({
+          sddPath,
+          svgFilePath,
+          outputDir,
+          assetsDir,
+          llmModel,
+          hooks: {
+            onStage: (stage) => {
+              activeLoading?.stop();
+              activeLoading = loading(stageMessages[stage]);
+            },
+            onProgress: (message) => {
+              activeLoading?.stop();
+              console.log(message);
+              activeLoading = loading(stageMessages['upload-svg']);
+            },
+          },
+        });
+
+        activeLoading?.stop();
+        divider('Resultado');
+        await success(`Template Vue gerado com sucesso em: ${result.outputFilePath}`);
+        await message(`Componentes processados: ${result.assets.length}`);
+        await message('Voltando ao menu principal...');
+      } catch (exception) {
+        activeLoading?.stop();
+        const errorMsg = exception instanceof Error ? exception.message : String(exception);
+        await error(`Falha no pipeline: ${errorMsg}`);
+        await message('Voltando ao menu principal...');
+      }
+    } catch (exception) {
       activeLoading?.stop();
-
-      if (assets.length === 0) {
-        throw new Error('Nenhum SVG foi baixado do Figma.');
-      }
-
-      if (assets.length === 1) {
-        svgFilePath = assets[0].path;
-      } else {
-        svgFilePath = await askAssetSelection(assets);
-      }
+      const errorMsg = exception instanceof Error ? exception.message : String(exception);
+      await error(`Erro no menu: ${errorMsg}`);
+      await message('Retornando ao menu principal...');
     }
-
-    await showSummary({
-      'Diretorio de saida': outputDir,
-      'Modelo IA': llmModel,
-      'Fonte do SVG': sourceType === 'local' ? 'SVG local' : 'Figma',
-      'SVG selecionado': svgFilePath,
-    });
-
-    const sddPath = path.resolve(process.cwd(), 'src/docs/sdd.json');
-
-    const result = await runPipeline({
-      sddPath,
-      svgFilePath,
-      outputDir,
-      assetsDir,
-      llmModel,
-      hooks: {
-        onStage: (stage) => {
-          activeLoading?.stop();
-          activeLoading = loading(stageMessages[stage]);
-        },
-        onProgress: (message) => {
-          activeLoading?.stop();
-          console.log(message);
-          activeLoading = loading(stageMessages['upload-svg']);
-        },
-      },
-    });
-
-    activeLoading?.stop();
-    divider('Resultado');
-    await success(`Template Vue gerado com sucesso em: ${result.outputFilePath}`);
-    await message(`Componentes processados: ${result.assets.length}`);
+  }
   } catch (exception) {
-    activeLoading?.stop();
-    const message = exception instanceof Error ? exception.message : String(exception);
-    await error(`Falha no pipeline: ${message}`);
+    const errorMsg = exception instanceof Error ? exception.message : String(exception);
+    await error(`Falha na autenticação ou no CLI: ${errorMsg}`);
     process.exitCode = 1;
   }
 };

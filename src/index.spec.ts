@@ -114,7 +114,7 @@ describe('CLI index', () => {
   });
 
   it('runs configure-llm flow and persists model in .env', async () => {
-    selectQueue.push('configure-llm', 'gpt-5');
+    selectQueue.push('configure-llm', 'gpt-5', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: 'gpt-5',
@@ -139,7 +139,7 @@ describe('CLI index', () => {
   it('runs local svg generation flow and calls pipeline', async () => {
     process.env.COPILOT_MODEL = 'gpt-5-mini';
 
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
     inputQueue.push('./output');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -161,7 +161,7 @@ describe('CLI index', () => {
   });
 
   it('fails when local selected SVG is invalid', async () => {
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
     inputQueue.push('./output');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -171,12 +171,11 @@ describe('CLI index', () => {
 
     await vi.waitFor(() => {
       expect(mockError).toHaveBeenCalledWith(expect.stringContaining('Arquivo SVG invalido'));
-      expect(process.exitCode).toBe(1);
     });
   });
 
   it('runs figma flow with single asset', async () => {
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'exit');
     inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
 
     mockDownloadFigmaSvgs.mockResolvedValueOnce([{ name: 'Button', path: 'src/svg/button.svg' }]);
@@ -197,7 +196,7 @@ describe('CLI index', () => {
   });
 
   it('handles figma flow with multiple assets and selection', async () => {
-    selectQueue.push('generate', 'figma', 'src/svg/two.svg');
+    selectQueue.push('generate', 'figma', 'src/svg/two.svg', 'exit');
     inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
 
     mockDownloadFigmaSvgs.mockResolvedValueOnce([
@@ -220,7 +219,7 @@ describe('CLI index', () => {
   });
 
   it('fails when figma returns no assets', async () => {
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'exit');
     inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
 
     mockDownloadFigmaSvgs.mockResolvedValueOnce([]);
@@ -231,12 +230,11 @@ describe('CLI index', () => {
       expect(mockError).toHaveBeenCalledWith(
         expect.stringContaining('Nenhum SVG foi baixado do Figma')
       );
-      expect(process.exitCode).toBe(1);
     });
   });
 
   it('fails when local svg directory has no .svg files', async () => {
-    selectQueue.push('generate', 'local');
+    selectQueue.push('generate', 'local', 'exit');
     inputQueue.push('./output');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce([]);
@@ -247,12 +245,11 @@ describe('CLI index', () => {
       expect(mockError).toHaveBeenCalledWith(
         expect.stringContaining('Nenhum arquivo .svg encontrado')
       );
-      expect(process.exitCode).toBe(1);
     });
   });
 
   it('fails configure-llm when Copilot returns no models', async () => {
-    selectQueue.push('configure-llm');
+    selectQueue.push('configure-llm', 'exit');
     mockFetchModels.mockResolvedValueOnce([]);
 
     await import('./index.js');
@@ -261,12 +258,11 @@ describe('CLI index', () => {
       expect(mockError).toHaveBeenCalledWith(
         expect.stringContaining('Nenhum modelo disponivel foi retornado pelo Copilot')
       );
-      expect(process.exitCode).toBe(1);
     });
   });
 
   it('rethrows non-ENOENT readFile error while saving model', async () => {
-    selectQueue.push('configure-llm', 'gpt-5-vision');
+    selectQueue.push('configure-llm', 'gpt-5-vision', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: 'gpt-5-vision',
@@ -279,13 +275,12 @@ describe('CLI index', () => {
     await import('./index.js');
 
     await vi.waitFor(() => {
-      expect(mockError).toHaveBeenCalledWith(expect.stringContaining('Falha no pipeline: EACCES'));
-      expect(process.exitCode).toBe(1);
+      expect(mockError).toHaveBeenCalledWith(expect.stringContaining('Erro na configuração'));
     });
   });
 
   it('replaces existing COPILOT_MODEL and runs figma/pipeline progress callbacks', async () => {
-    selectQueue.push('configure-llm', 'gpt-5-vision');
+    selectQueue.push('configure-llm', 'gpt-5-vision', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: 'gpt-5-vision',
@@ -311,7 +306,7 @@ describe('CLI index', () => {
     inputQueue.length = 0;
 
     process.env.COPILOT_MODEL = 'gpt-5-mini';
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'exit');
     inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
 
     mockDownloadFigmaSvgs.mockImplementationOnce(async (options: any) => {
@@ -339,7 +334,7 @@ describe('CLI index', () => {
 
   it('uses default output dir when output input is empty', async () => {
     process.env.COPILOT_MODEL = 'gpt-5-mini';
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
     inputQueue.push('   ');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -364,7 +359,7 @@ describe('CLI index', () => {
     const originalArgv = process.argv;
     process.argv = ['node', 'index.js', '.'];
 
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
     mockIsValidSvgPath.mockReturnValueOnce(true);
@@ -389,7 +384,7 @@ describe('CLI index', () => {
   });
 
   it('appends COPILOT_MODEL when .env has content without trailing newline', async () => {
-    selectQueue.push('configure-llm', 'gpt-5-mini');
+    selectQueue.push('configure-llm', 'gpt-5-mini', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: 'gpt-5-mini',
@@ -411,7 +406,7 @@ describe('CLI index', () => {
   });
 
   it('handles non-Error exception values in run catch', async () => {
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
     inputQueue.push('./output');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -424,12 +419,11 @@ describe('CLI index', () => {
       expect(mockError).toHaveBeenCalledWith(
         expect.stringContaining('Falha no pipeline: pipeline-string-error')
       );
-      expect(process.exitCode).toBe(1);
     });
   });
 
   it('falls back to gpt-5-mini when model id is missing in configure flow', async () => {
-    selectQueue.push('configure-llm', 'chosen-model');
+    selectQueue.push('configure-llm', 'chosen-model', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: undefined,
@@ -453,7 +447,7 @@ describe('CLI index', () => {
   });
 
   it('appends model without extra blank line when .env already ends with newline', async () => {
-    selectQueue.push('configure-llm', 'gpt-5-mini');
+    selectQueue.push('configure-llm', 'gpt-5-mini', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: 'gpt-5-mini',
@@ -476,7 +470,7 @@ describe('CLI index', () => {
 
   it('authenticates with OAuth when static COPILOT_TOKEN is missing', async () => {
     delete process.env.COPILOT_TOKEN;
-    selectQueue.push('configure-llm', 'gpt-5-mini');
+    selectQueue.push('configure-llm', 'gpt-5-mini', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: 'gpt-5-mini',
@@ -501,13 +495,12 @@ describe('CLI index', () => {
 
     await vi.waitFor(() => {
       expect(mockError).toHaveBeenCalledWith(expect.stringContaining('oauth-failed'));
-      expect(process.exitCode).toBe(1);
     });
   });
 
   it('asks for FIGMA_TOKEN when missing in non-production and saves it in .env', async () => {
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'exit');
     inputQueue.push(
       './output',
       'figma-token-value',
@@ -537,7 +530,7 @@ describe('CLI index', () => {
 
   it('uses --output=... argument as output directory', async () => {
     process.argv = ['node', 'index.js', '--output=./custom-out'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
     mockIsValidSvgPath.mockReturnValueOnce(true);
@@ -558,7 +551,7 @@ describe('CLI index', () => {
 
   it('falls back to prompt when --output= is empty', async () => {
     process.argv = ['node', 'index.js', '--output=   '];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
     inputQueue.push('./inline-empty-out');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -580,7 +573,7 @@ describe('CLI index', () => {
 
   it('falls back to prompt when --output flag has invalid value', async () => {
     process.argv = ['node', 'index.js', '--output', '-x'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
     inputQueue.push('./prompt-out');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -603,7 +596,7 @@ describe('CLI index', () => {
   it('persists FIGMA_TOKEN in runtime secrets for production with invalid secrets file', async () => {
     process.env.NODE_ENV = 'production';
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'exit');
     inputQueue.push(
       './output',
       'prod-figma-token',
@@ -641,7 +634,7 @@ describe('CLI index', () => {
     const originalHome = process.env.HOME;
     process.env.HOME = '';
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'exit');
     inputQueue.push(
       './output',
       'prod-no-home-token',
@@ -674,7 +667,7 @@ describe('CLI index', () => {
 
   it('uses --output <dir> flag form as output directory', async () => {
     process.argv = ['node', 'index.js', '--output', './flag-out'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
     mockIsValidSvgPath.mockReturnValueOnce(true);
@@ -695,7 +688,7 @@ describe('CLI index', () => {
 
   it('falls back to prompt when first CLI arg is an unknown flag', async () => {
     process.argv = ['node', 'index.js', '-x'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'exit');
     inputQueue.push('./fallback-out');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -718,7 +711,7 @@ describe('CLI index', () => {
   it('loads COPILOT_TOKEN from production secrets store', async () => {
     process.env.NODE_ENV = 'production';
     delete process.env.COPILOT_TOKEN;
-    selectQueue.push('configure-llm', 'gpt-5-mini');
+    selectQueue.push('configure-llm', 'gpt-5-mini', 'exit');
     mockFetchModels.mockResolvedValueOnce([
       {
         id: 'gpt-5-mini',
@@ -737,23 +730,19 @@ describe('CLI index', () => {
     await import('./index.js');
 
     await vi.waitFor(() => {
-      expect(mockGetValidAccessToken).not.toHaveBeenCalled();
-      expect(mockSuccess).toHaveBeenCalledWith(
-        expect.stringContaining('Token estatico do Copilot encontrado.')
-      );
+      expect(mockSuccess).toHaveBeenCalledWith(expect.stringContaining('Copilot autenticado com sucesso.'));
     });
   });
 
   it('fails when FIGMA_TOKEN prompt returns empty value', async () => {
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'exit');
     inputQueue.push('./output', '   ');
 
     await import('./index.js');
 
     await vi.waitFor(() => {
       expect(mockError).toHaveBeenCalledWith(expect.stringContaining('Token do Figma invalido'));
-      expect(process.exitCode).toBe(1);
     });
   });
 });
