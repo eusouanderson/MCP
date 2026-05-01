@@ -22,6 +22,7 @@ vi.mock('node:fs/promises', () => ({
   writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { readFile } from 'node:fs/promises';
 import { __figmaTestUtils, downloadFigmaSvgs } from '../figma.js';
 
 const VALID_URL = 'https://www.figma.com/design/ABC123XYZ/my-file';
@@ -1175,6 +1176,192 @@ describe('downloadFigmaSvgs', () => {
     );
   });
 
+  it('appends FIGMA_TOKEN to existing .env content without trailing newline', async () => {
+    const { readFile, writeFile } = await import('node:fs/promises');
+
+    vi.unstubAllEnvs();
+    process.env.NODE_ENV = 'development';
+    delete process.env.FIGMA_TOKEN;
+    mockQuestion.mockResolvedValueOnce('token-no-newline');
+
+    vi.mocked(readFile).mockImplementation(async (filePath: any) => {
+      if (String(filePath).endsWith('.env')) {
+        return 'FOO=bar';
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ images: null }) })
+    );
+
+    await expect(downloadFigmaSvgs({ figmaUrl: URL_WITH_NODE })).rejects.toThrow(
+      'Nao foi possivel renderizar o node-id'
+    );
+
+    expect(vi.mocked(writeFile)).toHaveBeenCalledWith(
+      expect.stringContaining('.env'),
+      'FOO=bar\nFIGMA_TOKEN=token-no-newline\n',
+      'utf8'
+    );
+  });
+
+  it('writes SVG when cached file content differs', async () => {
+    const { readFile, writeFile } = await import('node:fs/promises');
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.mocked(readFile).mockResolvedValueOnce('<svg></svg>');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'V:1': 'https://cdn.figma.com/exports/icon.svg' } }),
+          });
+        }
+        if (url.includes('/files/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'V:1', name: 'Icon', type: 'VECTOR', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
+    expect(assets).toHaveLength(1);
+    expect(vi.mocked(writeFile)).toHaveBeenCalled();
+  });
+
+  it('appends FIGMA_TOKEN preserving existing .env trailing newline', async () => {
+    const { readFile, writeFile } = await import('node:fs/promises');
+
+    vi.unstubAllEnvs();
+    process.env.NODE_ENV = 'development';
+    delete process.env.FIGMA_TOKEN;
+    mockQuestion.mockResolvedValueOnce('token-with-newline');
+
+    vi.mocked(readFile).mockImplementation(async (filePath: any) => {
+      if (String(filePath).endsWith('.env')) {
+        return 'FOO=bar\n';
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ images: null }) })
+    );
+
+    await expect(downloadFigmaSvgs({ figmaUrl: URL_WITH_NODE })).rejects.toThrow(
+      'Nao foi possivel renderizar o node-id'
+    );
+
+    expect(vi.mocked(writeFile)).toHaveBeenCalledWith(
+      expect.stringContaining('.env'),
+      'FOO=bar\nFIGMA_TOKEN=token-with-newline\n',
+      'utf8'
+    );
+  });
+
+  it('handles variables with missing names and null valuesByMode gracefully', async () => {
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/variables/local')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              variables: [
+                {
+                  id: 'var-1',
+                  valuesByMode: { mode1: null },
+                },
+              ],
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'V:1': 'https://cdn.figma.com/exports/icon.svg' } }),
+          });
+        }
+        if (url.includes('/files/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'V:1', name: 'Icon', type: 'VECTOR', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designTokens?.tokenToClassMap).toEqual({});
+  });
+
+  it('reports production progress when prompting missing FIGMA_TOKEN in production', async () => {
+    const progress = vi.fn();
+    vi.unstubAllEnvs();
+    process.env.NODE_ENV = 'production';
+    delete process.env.FIGMA_TOKEN;
+    mockQuestion.mockResolvedValueOnce('prod-token-progress');
+
+    vi.mocked(readFile).mockImplementation(async () => {
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ images: { '1150:16805': null } }) })
+    );
+
+    await expect(downloadFigmaSvgs({ figmaUrl: URL_WITH_NODE, onProgress: progress })).rejects.toThrow(
+      'Nao foi possivel renderizar o node-id'
+    );
+
+    expect(progress).toHaveBeenCalledWith('FIGMA_TOKEN nao encontrada. Solicitar token no terminal...');
+    expect(progress).toHaveBeenCalledWith(
+      'FIGMA_TOKEN salva em armazenamento seguro local (producao).'
+    );
+  });
+
   it('throws when saving FIGMA_TOKEN in .env gets non-ENOENT read error', async () => {
     const { readFile } = await import('node:fs/promises');
 
@@ -1259,6 +1446,46 @@ describe('downloadFigmaSvgs', () => {
     expect(assets[0].designTokens?.tokenToClassMap?.spacingSm).toBe('p-2');
     expect(assets[0].designTokens?.tokenToClassMap?.radiusMd).toBe('rounded-4');
     expect(assets[0].designTokens?.tokenToClassMap?.sizeLg).toBe('w-8');
+  });
+
+  it('uses cwd default assetsDir for node-id downloads', async () => {
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { '1150:16805': 'https://cdn.figma.com/exports/card.svg' } }),
+          });
+        }
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                '1150:16805': {
+                  document: {
+                    id: '1150:16805',
+                    name: 'Card',
+                    type: 'FRAME',
+                    fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }],
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({ figmaUrl: URL_WITH_NODE });
+    expect(assets).toHaveLength(1);
+    expect(assets[0].path).toMatch(/^svg\//);
+    expect(assets[0].name).toBe('Card');
   });
 
   it('loads FIGMA_TOKEN from production secrets and sets process.env', async () => {
@@ -1493,6 +1720,19 @@ describe('downloadFigmaSvgs', () => {
     expect(result[0]?.id).toBe('Y:0');
   });
 
+  it('skips falsy children when collecting all exportable IDs', () => {
+    const node = {
+      id: '0:0',
+      name: 'Root',
+      type: 'DOCUMENT',
+      children: [undefined, { id: 'F:1', name: 'Frame', type: 'FRAME', children: [] }],
+    } as any;
+
+    const result = __figmaTestUtils.collectAllExportableIds(node);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe('F:1');
+  });
+
   // Line 189: hasImageFill branch when node has no IMAGE fills
   it('exports node with non-IMAGE fill types', async () => {
     const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
@@ -1540,7 +1780,84 @@ describe('downloadFigmaSvgs', () => {
 
     const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
     expect(assets).toHaveLength(1);
-    expect(assets[0].name).toBe('SolidRect');
+    expect(assets[0].name).toBe('Solidrect');
+  });
+
+  it('converts semi-transparent solid fills to RGBA hex in design info', async () => {
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'V:1': 'https://cdn.figma.com/exports/test.svg' } }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'V:1': {
+                  document: {
+                    id: 'V:1',
+                    name: 'Icon',
+                    type: 'VECTOR',
+                    absoluteBoundingBox: { width: 32, height: 32 },
+                    fills: [{ type: 'SOLID', color: { r: 1, g: 0, b: 0, a: 0.5 } }],
+                    children: [
+                      {
+                        id: 'T:1',
+                        name: 'Label',
+                        type: 'TEXT',
+                        characters: 'Hello',
+                        style: { fontFamily: 'Inter', fontSize: 14, fontWeight: 500 },
+                        children: [],
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [
+                      {
+                        id: 'V:1',
+                        name: 'Icon',
+                        type: 'VECTOR',
+                        children: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.colors).toContain('#ff000080');
+    expect(assets[0].designInfo?.texts).toContain('Hello');
   });
 
   // Lines 221, 227, 261, 267: children collection branches with no children
@@ -1574,7 +1891,6 @@ describe('downloadFigmaSvgs', () => {
                         id: 'V:1',
                         name: 'VectorNoChildren',
                         type: 'VECTOR',
-                        // No children property
                       },
                     ],
                   },
@@ -1589,7 +1905,7 @@ describe('downloadFigmaSvgs', () => {
 
     const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
     expect(assets).toHaveLength(1);
-    expect(assets[0].name).toBe('VectorNoChildren');
+    expect(assets[0].name).toBe('Vectornochildren');
   });
 
   // Line 319: variablesResponse.ok is false (failed fetch)
@@ -1639,6 +1955,96 @@ describe('downloadFigmaSvgs', () => {
     const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
     expect(assets).toHaveLength(1);
     expect(assets[0].designTokens?.tokenToClassMap).toEqual({});
+  });
+
+  it('uses cwd default assetsDir for full-document downloads', async () => {
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/files/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'V:1', name: 'Icon', type: 'VECTOR', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'V:1': 'https://cdn.figma.com/exports/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL });
+    expect(assets).toHaveLength(1);
+    expect(assets[0].path).toMatch(/^svg\//);
+  });
+
+  it('exports non-vector nodes with IMAGE fill as SVG', async () => {
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'V:1': 'https://cdn.figma.com/exports/v1.svg' } }),
+          });
+        }
+        if (url.includes('/files/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [
+                      {
+                        id: 'V:1',
+                        name: 'ImageFrame',
+                        type: 'FRAME',
+                        fills: [{ type: 'IMAGE', imageRef: 'abc' }],
+                        children: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
+    expect(assets).toHaveLength(1);
+    expect(assets[0].name).toBe('Imageframe');
   });
 
   // Lines 328-331: valuesByMode is missing or empty
@@ -1692,6 +2098,57 @@ describe('downloadFigmaSvgs', () => {
     const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
     expect(assets).toHaveLength(1);
     // Should have empty map when variables have no valuesByMode
+    expect(assets[0].designTokens?.tokenToClassMap).toEqual({});
+  });
+
+  it('skips variables with blank valuesByMode entries', async () => {
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/variables/local')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              variables: {
+                v1: { name: 'primaryColor', valuesByMode: { m1: '   ' } },
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'V:1': 'https://cdn.figma.com/exports/v1.svg' } }),
+          });
+        }
+        if (url.includes('/files/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'V:1', name: 'Icon', type: 'VECTOR', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
+    expect(assets).toHaveLength(1);
     expect(assets[0].designTokens?.tokenToClassMap).toEqual({});
   });
 
@@ -1828,7 +2285,7 @@ describe('downloadFigmaSvgs', () => {
                 '1150:16805': {
                   document: {
                     id: '1150:16805',
-                    name: 'CustomNodeName',
+                    name: 'Customnodename',
                     type: 'FRAME',
                     children: [],
                   },
@@ -1844,7 +2301,7 @@ describe('downloadFigmaSvgs', () => {
     const assets = await downloadFigmaSvgs({ figmaUrl: URL_WITH_NODE, assetsDir: '/tmp/test' });
 
     expect(assets).toHaveLength(1);
-    expect(assets[0].name).toBe('CustomNodeName');
+    expect(assets[0].name).toBe('Customnodename');
   });
 
   // Lines 524-535: Node details with empty/whitespace name

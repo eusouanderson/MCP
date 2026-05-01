@@ -4,13 +4,13 @@ import { stdin as input, stdout as output } from 'process';
 
 import path from 'node:path';
 import {
-  DownloadFigmaSvgsOptions,
-  FigmaAsset,
-  FigmaDesignInfo,
-  FigmaDesignTokens,
-  FigmaFileResponse,
-  FigmaImagesResponse,
-  FigmaNode,
+    DownloadFigmaSvgsOptions,
+    FigmaAsset,
+    FigmaDesignInfo,
+    FigmaDesignTokens,
+    FigmaFileResponse,
+    FigmaImagesResponse,
+    FigmaNode,
 } from './interfaces.js';
 
 const FIGMA_API_BASE = 'https://api.figma.com/v1';
@@ -326,10 +326,21 @@ const fetchDesignTokens = async (
 
     for (const variable of variables.slice(0, 30)) {
       const varName = (variable as Record<string, string>).name || '';
-      const varValue =
-        ((variable as Record<string, Record<string, unknown>>).valuesByMode || {})[
-          Object.keys((variable as Record<string, Record<string, unknown>>).valuesByMode || {})[0]
-        ] || '';
+      const valuesByMode = (variable as Record<string, unknown>).valuesByMode as
+        | Record<string, string | number>
+        | undefined;
+
+      if (!valuesByMode || Object.keys(valuesByMode).length === 0) {
+        continue;
+      }
+
+      const firstModeKey = Object.keys(valuesByMode)[0];
+      const rawValue = valuesByMode[firstModeKey];
+      const varValue = rawValue === undefined || rawValue === null ? '' : String(rawValue).trim();
+
+      if (varValue.length === 0) {
+        continue;
+      }
 
       // Mapeia nomes comuns de tokens para classes
       if (varName.includes('color') || varName.includes('Color')) {
@@ -672,3 +683,4 @@ const __figmaTestUtils = {
 
 export { __figmaTestUtils, downloadFigmaSvgs };
 export type { DownloadFigmaSvgsOptions };
+

@@ -378,7 +378,7 @@ describe('CLI index', () => {
 
     await vi.waitFor(() => {
       expect(mockRunPipeline).toHaveBeenCalledWith(
-        expect.objectContaining({ outputDir: expect.stringContaining('/MCP_Frontend') })
+        expect.objectContaining({ outputDir: process.cwd() })
       );
       expect(mockMessage).toHaveBeenCalledWith(
         expect.stringContaining('Caminho de saida via CLI:')
