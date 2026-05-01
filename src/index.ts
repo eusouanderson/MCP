@@ -16,7 +16,7 @@ import { PipelineStage, runPipeline } from './mcp/pipeline.js';
 const { Input, Select, Confirm } = enquirer as any;
 
 type MainMenuChoice = 'generate' | 'configure-llm' | 'configure-secrets' | 'configure-all' | 'exit';
-type RuntimeSecretKey = 'COPILOT_TOKEN' | 'FIGMA_TOKEN';
+type RuntimeSecretKey = 'FIGMA_TOKEN';
 type RuntimeSecrets = Partial<Record<RuntimeSecretKey, string>>;
 
 const DEFAULT_RUNTIME_SECRETS_PATH = path.resolve(
@@ -60,7 +60,7 @@ const askMainMenuChoice = async (): Promise<MainMenuChoice> => {
       {
         name: 'configure-secrets',
         message: 'Configurar tokens e segredos',
-        hint: 'FIGMA_TOKEN / COPILOT_TOKEN',
+        hint: 'FIGMA_TOKEN (apenas para Figma)',
       },
       {
         name: 'configure-all',
@@ -325,12 +325,6 @@ const resolveSecretFromStore = async (key: RuntimeSecretKey): Promise<string | u
 
 const ensureCopilotConnection = async (): Promise<void> => {
   divider('Conexao Copilot');
-
-  const staticToken = await resolveSecretFromStore('COPILOT_TOKEN');
-  if (staticToken) {
-    await success('Token estatico do Copilot encontrado.');
-    return;
-  }
 
   const authLoading = loading('Autenticando no Copilot...');
   try {
