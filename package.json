@@ -1,0 +1,41 @@
+{
+  "name": "mcp_frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/mcp-frontend.cjs",
+  "bin": {
+    "mcp-frontend": "dist/mcp-frontend.cjs",
+    "mcp_frontend": "dist/mcp-frontend.cjs"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "pnpm clean && esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --outfile=dist/mcp-frontend.cjs",
+    "start": "node dist/mcp-frontend.cjs",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "pkg:linux": "pnpm build && node scripts/sea-build.mjs"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@types/node": "^25.6.0",
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.2",
+    "dotenv": "^17.4.2",
+    "enquirer": "^2.4.1",
+    "groq-sdk": "^1.1.2",
+    "log-symbols": "^7.0.1",
+    "ora": "^9.4.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.5",
+    "@yao-pkg/pkg": "^6.19.0",
+    "esbuild": "^0.25.11",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  }
+}

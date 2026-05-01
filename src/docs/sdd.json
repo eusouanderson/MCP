@@ -1,0 +1,209 @@
+{
+  "document": {
+    "name": "SDD - Frontend Generation Specification",
+    "version": "1.0.0",
+    "createdAt": "2026-04-29",
+    "language": "pt-BR",
+    "target": "LLM code generation"
+  },
+  "goal": "Definir como a LLM deve gerar um projeto frontend baseado no template de adesao analisado, preservando arquitetura modular, fluxo por passos, padrao de componentes e qualidade de codigo.",
+  "referenceTemplate": {
+    "path": "~/dmc2/adesao-frontend",
+    "branch": "release/DMCS-3298-release-passos-nova-adesao",
+    "stackDetected": [
+      "Vue 3",
+      "TypeScript",
+      "Vite",
+      "Vue Router",
+      "Pinia",
+      "TailwindCSS",
+      "Axios",
+      "Vitest",
+      "vite-plugin-pages",
+      "vite-plugin-vue-layouts",
+      "vite-plugin-pwa"
+    ]
+  },
+  "projectRules": {
+    "mustUse": [
+      "Arquitetura por dominio e fluxo de passos",
+      "Composables para logica reutilizavel",
+      "Store global Pinia para estado de fluxo",
+      "Rotas dinamicas com UUID no caminho",
+      "Separacao entre camada de UI, estado, composables e API",
+      "Tipagem forte baseada em contratos de backend"
+    ],
+    "mustAvoid": [
+      "Logica de negocio pesada dentro de componentes .vue",
+      "Acoplamento direto de componentes a regras de roteamento",
+      "Estado global fora de store quando compartilhar dados entre passos",
+      "Criacao de utilitarios genericos sem contexto de dominio",
+      "Mistura de responsabilidades entre service e composable"
+    ]
+  },
+  "architecture": {
+    "folderStructure": {
+      "src/components": "Componentes visuais por dominio e componentes globais reutilizaveis.",
+      "src/pages": "Paginas roteadas por arquivo, incluindo fluxo dinamico em src/pages/[uuid]/.",
+      "src/layouts": "Layouts compartilhados para shell de pagina (Default, Externa, etc).",
+      "src/composables": "Logica reutilizavel por feature e por passo.",
+      "src/stores": "Estado global com Pinia (ex.: controle de passos e tipo de pessoa).",
+      "src/plugins": "Plugins de infraestrutura (ex.: axios e interceptors).",
+      "src/services": "Rotas tipadas, clientes e contratos gerados.",
+      "src/utils": "Funcoes utilitarias e resposta padrao de erros/schemas.",
+      "src/types": "Declaracoes de tipos globais e augmentations."
+    },
+    "fileNaming": {
+      "components": "PascalCase para nomes de componentes e pasta por feature com index.vue",
+      "composables": "prefixo use + contexto (ex.: usePasso1, useCarregarAdesao)",
+      "stores": "prefixo use + dominio (ex.: useFluxoAdesao)",
+      "pages": "estrutura de pagina por rota e passo (ex.: src/pages/[uuid]/passo1/index.vue)",
+      "tests": "index.spec.ts ou arquivo.spec.ts no mesmo dominio"
+    }
+  },
+  "routingAndFlow": {
+    "routingStrategy": [
+      "Usar vite-plugin-pages para gerar rotas a partir de src/pages.",
+      "Usar vite-plugin-vue-layouts para associar layout por meta.",
+      "Definir bloco <route lang=\"json\"> em paginas quando necessario para name/meta/layout.",
+      "Fluxo principal deve usar rotas dinamicas com parametro uuid para continuidade da adesao."
+    ],
+    "routeGuardRules": [
+      "Se rota nao possui uuid e nao for rota inicial/final permitida, redirecionar para index.",
+      "Bloquear acesso a passos nao habilitados no store de controle de passos.",
+      "Permitir avancar somente conforme permissao de fluxo calculada a partir do backend.",
+      "Quando fluxo estiver concluido, redirecionar para tela de adesao finalizada."
+    ],
+    "stepFlowContract": {
+      "stepKeys": [
+        "inicio-adesao",
+        "uuid-passo1",
+        "uuid-passo2",
+        "uuid-passo3",
+        "uuid-passo4",
+        "uuid-passo5",
+        "uuid-passo6",
+        "uuid-assinatura",
+        "adesao-finalizada"
+      ],
+      "personTypes": ["pf", "pj"],
+      "dynamicRules": [
+        "Fluxo pode mudar por tipo de pessoa (pf/pj).",
+        "Calculo de proximo passo deve considerar passos concluidos no backend.",
+        "Assinatura deve travar passos anteriores quando aplicavel."
+      ]
+    }
+  },
+  "stateManagement": {
+    "storeRequirements": [
+      "Criar store principal do fluxo com defineStore em setup syntax.",
+      "Persistir uuid atual, passoAtual, tipoPessoa e controlePassos.",
+      "Implementar acoes para resetar fluxo, permitir passo, navegar entre passos e finalizar.",
+      "Implementar funcao para mapear passos do backend para permissao de UI."
+    ],
+    "reactivityPattern": [
+      "Usar ref para valores primitivos de estado principal.",
+      "Usar reactive para mapa de controle de passos.",
+      "Usar storeToRefs em componentes/paginas para consumir estado reativo."
+    ]
+  },
+  "apiAndData": {
+    "httpClient": [
+      "Criar instancia Axios unica em plugin dedicado.",
+      "Definir baseURL via variavel de ambiente.",
+      "Adicionar interceptor de erro para padronizar tratamento de resposta."
+    ],
+    "serviceLayer": [
+      "Manter camada src/services para contratos e rotas tipadas.",
+      "Consumir endpoints por composables useApi<Contexto>.",
+      "Nao acessar API direto em componentes visuais."
+    ],
+    "typing": [
+      "Usar tipos derivados do contrato backend (generated types).",
+      "Evitar any sem justificativa tecnica.",
+      "Modelar payloads e respostas por passo."
+    ]
+  },
+  "componentAndUIRules": {
+    "composition": [
+      "Cada pagina de passo deve apenas orquestrar componentes e chamadas de composables.",
+      "Componentes globais para partes comuns: banner, controle de passos, resumo, pagamentos, modal.",
+      "Separar componentes por passo quando regra de negocio for especifica."
+    ],
+    "layout": [
+      "Usar layout compartilhado com router-view e componentes globais de loading/toast.",
+      "Permitir variacao de layout por meta de rota."
+    ],
+    "styling": [
+      "Utilizar TailwindCSS para classes utilitarias.",
+      "Priorizar semantica e legibilidade do template.",
+      "Evitar CSS customizado quando classe utilitaria resolver."
+    ],
+    "designSystem": [
+      "Quando o projeto destino usar design system corporativo, os componentes de UI devem seguir o design system oficial.",
+      "Padronizar botoes, inputs, loaders, toasts e icones pela biblioteca oficial do projeto."
+    ]
+  },
+  "composablesPattern": {
+    "singleton": [
+      "Usar singleton para estado compartilhado global via store (Pinia).",
+      "Exemplo de uso: fluxo de adesao e controle central de passos."
+    ],
+    "multiInstance": [
+      "Usar composables multi-instancia para formulario e logica local por passo.",
+      "Garantir isolamento de estado por tela quando necessario."
+    ],
+    "naming": [
+      "useApi<Passo> para chamadas de API.",
+      "use<Passo> para regras locais e validacoes da tela."
+    ]
+  },
+  "testingAndQuality": {
+    "tests": [
+      "Criar testes unitarios com Vitest para composables, utils, store e componentes criticos.",
+      "Manter testes proximos ao codigo da feature.",
+      "Cobrir fluxos de sucesso, erro e regras de habilitacao de passos."
+    ],
+    "lintFormat": [
+      "Aplicar ESLint e Prettier como padrao obrigatorio.",
+      "Evitar warnings de tipagem e imports nao usados."
+    ],
+    "scriptsExpected": ["dev", "build", "test:unit", "lint", "format"]
+  },
+  "pwaAndRuntime": {
+    "pwa": [
+      "Se o produto exigir offline/retry, configurar VitePWA e Workbox runtime caching.",
+      "Permitir fallback de navegacao com denylist para rotas que nao devem ser interceptadas."
+    ],
+    "env": [
+      "Centralizar variaveis em .env e .env.example.",
+      "Nunca hardcode de URL de API no codigo."
+    ]
+  },
+  "llmExecutionPlan": {
+    "orderedSteps": [
+      "Criar estrutura base do projeto Vue 3 + TS + Vite com plugins de pages/layouts.",
+      "Configurar roteamento dinamico por UUID e metadados de layout por pagina.",
+      "Implementar store global de fluxo com regras de permissao de passos.",
+      "Implementar plugin axios e camada de services/composables API por passo.",
+      "Criar paginas de passos e componentes por dominio, mantendo composicao limpa.",
+      "Adicionar testes unitarios para store/composables/utils e cenarios principais.",
+      "Aplicar lint/format/build e corrigir erros finais."
+    ],
+    "outputRequirements": [
+      "Gerar codigo pronto para build sem placeholders vazios.",
+      "Incluir tipagem para dados principais do fluxo.",
+      "Entregar estrutura de pastas coerente com a arquitetura especificada.",
+      "Evitar explicar demais no codigo; focar implementacao objetiva e testavel."
+    ]
+  },
+  "definitionOfDone": [
+    "Projeto compila com TypeScript sem erros.",
+    "Rotas por passo funcionam com guardas de permissao.",
+    "Fluxo PF/PJ respeita regras de navegacao e conclusao.",
+    "Store central controla estado e transicoes do fluxo.",
+    "Composables isolam logica de API e de negocio por passo.",
+    "Testes unitarios cobrem regras centrais.",
+    "Lint e format executam sem falhas."
+  ]
+}

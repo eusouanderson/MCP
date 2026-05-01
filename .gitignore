@@ -1,0 +1,3 @@
+.env
+.copilot/auth.json
+dist/.copilot/auth.json
