@@ -242,4 +242,43 @@ describe('buildContext', () => {
     expect(context.assets[0].svgSummary).toBeDefined();
     expect(context.assets[0].svgContentForLlm).toBeUndefined();
   });
+
+  it('filters out unwanted texts from designInfo before passing to LLM', () => {
+    const unwantedText =
+      'Enviar o documento agora ajuda a acelerar o seu processo de adesão. É opcional, ok?';
+    const assets = [
+      {
+        name: 'test-component',
+        path: 'test-component.svg',
+        designInfo: {
+          texts: ['Hello', unwantedText, 'World'],
+          colors: ['#FF0000'],
+          layout: {
+            mode: 'HORIZONTAL',
+            gap: 0,
+            cornerRadius: 0,
+            padding: { left: 0, right: 0, top: 0, bottom: 0 },
+          },
+          styleRefs: {},
+          typography: [
+            { text: 'Hello', fontSize: 14, fontWeight: 400 },
+            { text: unwantedText, fontSize: 14, fontWeight: 400 },
+            { text: 'World', fontSize: 14, fontWeight: 400 },
+          ],
+        },
+      },
+    ];
+
+    const context = buildContext({}, assets);
+    const designInfo = context.assets[0].designInfo;
+
+    expect(designInfo?.texts).not.toContain(unwantedText);
+    expect(designInfo?.texts).toContain('Hello');
+    expect(designInfo?.texts).toContain('World');
+    expect(designInfo?.texts?.length).toBe(2);
+    expect(designInfo?.typography).not.toContainEqual(
+      expect.objectContaining({ text: unwantedText })
+    );
+    expect(designInfo?.typography?.length).toBe(2);
+  });
 });

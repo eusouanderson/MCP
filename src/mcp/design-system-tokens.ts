@@ -78,7 +78,7 @@ const valueToTailwindClass = (tokenName: string, value: string | number): string
     return undefined;
   }
 
-  // Typography/Font size
+  // Font size
   if (tokenName.includes('size') || tokenName.includes('Size') || tokenName.includes('font')) {
     const numValue = parseFloat(String(value));
     if (!isNaN(numValue)) {
@@ -99,7 +99,6 @@ const valueToTailwindClass = (tokenName: string, value: string | number): string
 
 /**
  * Enriquece a lista de classes Tailwind com mapeamentos de token
- * para "modo precisão máxima"
  */
 const enrichClassesWithTokens = (
   baseClasses: string[],
@@ -112,14 +111,13 @@ const enrichClassesWithTokens = (
   const enriched = [...baseClasses];
   const tokenClasses = Object.values(designTokens.tokenToClassMap).filter(Boolean);
 
-  // Adiciona classes de tokens sem duplicar
   for (const tokenClass of tokenClasses) {
     if (!enriched.includes(tokenClass)) {
       enriched.push(tokenClass);
     }
   }
 
-  return enriched.slice(0, 12); // Limita para não sobrecarregar
+  return enriched.slice(0, 12);
 };
 
 export { enrichClassesWithTokens, resolveTokenToClass, valueToTailwindClass };

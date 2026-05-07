@@ -162,6 +162,33 @@ const toTailwindHints = (asset: FigmaAsset) => {
 };
 
 /**
+ * Lista de frases/textos indesejados que não devem ser passados ao LLM.
+ * Esses textos podem aparecer no design original do Figma mas não devem
+ * ser incorporados nos componentes gerados.
+ */
+const UNWANTED_TEXTS = [
+  'Enviar o documento agora ajuda a acelerar o seu processo de adesão. É opcional, ok?',
+];
+
+/**
+ * Filtra o designInfo para remover textos indesejados que não devem ser
+ * passados ao LLM para geração de componentes.
+ */
+const filterDesignInfoForLlm = (designInfo: any) => {
+  if (!designInfo) return designInfo;
+
+  return {
+    ...designInfo,
+    texts: designInfo.texts
+      ? designInfo.texts.filter((text: string) => !UNWANTED_TEXTS.includes(text))
+      : [],
+    typography: designInfo.typography
+      ? designInfo.typography.filter((typo: any) => !UNWANTED_TEXTS.includes(typo.text))
+      : [],
+  };
+};
+
+/**
  * Extrai um resumo do SVG sem passar os dados brutos de path para a LLM.
  * Mantém: viewBox, dimensoes, fills/strokes, quantidade de elementos.
  * Remove: coordenadas de path (d="..."), dados de texto complexo.
@@ -210,7 +237,7 @@ const buildContext = (
   const assetsForLlm = assets.map((asset) => ({
     name: asset.name,
     path: asset.path,
-    designInfo: asset.designInfo,
+    designInfo: filterDesignInfoForLlm(asset.designInfo),
     svgSummary: asset.content ? summarizeSvgContent(asset.content) : undefined,
     svgContentForLlm: asset.content ? getSvgContentForLlm(asset.content) : undefined,
     tailwindHints: toTailwindHints(asset),
