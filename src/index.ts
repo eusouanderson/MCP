@@ -276,6 +276,33 @@ const askTokenValue = async (label: string): Promise<string | typeof BACK_SENTIN
   return askInputOrBack(`Token do ${label}`, `Informe o token do ${label}`);
 };
 
+const askUseDesignSystem = async (): Promise<boolean | typeof BACK_SENTINEL> => {
+  const choice = (await new Select({
+    name: 'useDesignSystem',
+    message: 'Usar componentes do Design System (@comercti/vue-components)?',
+    choices: [
+      {
+        name: 'no',
+        message: 'Nao — gerar apenas com HTML + TailwindCSS',
+        hint: 'Padrao',
+      },
+      {
+        name: 'yes',
+        message: 'Sim — substituir inputs, botoes e icones por componentes do DS',
+        hint: 'Adiciona <script setup> com imports do @comercti/vue-components',
+      },
+      {
+        name: BACK_SENTINEL,
+        message: 'Voltar',
+        hint: 'Retornar ao menu principal',
+      },
+    ],
+  }).run()) as 'yes' | 'no' | typeof BACK_SENTINEL;
+
+  if (choice === BACK_SENTINEL) return BACK_SENTINEL;
+  return choice === 'yes';
+};
+
 const askAssetSelection = async (
   assets: { name: string; path: string }[]
 ): Promise<string | typeof BACK_SENTINEL> => {
@@ -638,12 +665,25 @@ const run = async (): Promise<void> => {
         );
       }
 
+      const useDesignSystem = await askUseDesignSystem();
+      if (useDesignSystem === BACK_SENTINEL) {
+        await message('Voltando ao menu principal...');
+        continue;
+      }
+
+      if (useDesignSystem) {
+        await message(
+          'Modo Design System ativado: buscando componentes do @comercti/vue-components...'
+        );
+      }
+
       const result = await runPipeline({
         sddPath: sddResult.sddPath,
         svgFilePath,
         outputDir,
         assetsDir,
         llmModel,
+        useDesignSystem,
         hooks: {
           onStage: (stage) => {
             activeLoading?.stop();

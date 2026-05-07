@@ -1,3 +1,4 @@
+import { DsComponentRef } from '../ds/resolver.js';
 import { FigmaAsset } from '../integrations/interfaces.js';
 import { enrichClassesWithTokens } from './design-system-tokens.js';
 import { McpContext, SddData, VueAssetHint } from './interfaces.js';
@@ -196,7 +197,11 @@ const summarizeSvgContent = (svgContent: string): string => {
   return parts.join(' | ');
 };
 
-const buildContext = (sdd: SddData, assets: FigmaAsset[]): McpContext => {
+const buildContext = (
+  sdd: SddData,
+  assets: FigmaAsset[],
+  dsComponents?: DsComponentRef[]
+): McpContext => {
   const vueAssetHints: VueAssetHint[] = assets.map((asset) => ({
     assetName: asset.name,
     filePath: asset.path,
@@ -222,6 +227,7 @@ const buildContext = (sdd: SddData, assets: FigmaAsset[]): McpContext => {
       generatedAt: new Date().toISOString(),
       assetsCount: assets.length,
     },
+    dsComponents,
   };
 };
 

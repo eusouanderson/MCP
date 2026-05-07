@@ -16,7 +16,7 @@ describe('designSystemData', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     const { designSystemData } = await import('../index.js');
-    const result = await designSystemData();
+    const result = await designSystemData('ce-button.json');
 
     expect(result).toEqual({ version: '1.0' });
     // Quando URL_DS não está definido, usa o valor padrão no módulo
@@ -36,10 +36,10 @@ describe('designSystemData', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     const { designSystemData } = await import('../index.js');
-    const result = await designSystemData();
+    const result = await designSystemData('ce-button.json');
 
     expect(result).toEqual({ colors: ['red', 'blue'] });
-    expect(mockFetch).toHaveBeenCalledWith('https://custom-ds.com/api/tokens.json');
+    expect(mockFetch).toHaveBeenCalledWith('https://custom-ds.com/api/tokens.json/ce-button.json');
 
     vi.unstubAllGlobals();
   });
@@ -55,7 +55,7 @@ describe('designSystemData', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { designSystemData } = await import('../index.js');
-    const result = await designSystemData();
+    const result = await designSystemData('ce-button.json');
 
     expect(result).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));
@@ -73,7 +73,7 @@ describe('designSystemData', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { designSystemData } = await import('../index.js');
-    const result = await designSystemData();
+    const result = await designSystemData('ce-button.json');
 
     expect(result).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));
@@ -94,7 +94,7 @@ describe('designSystemData', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const { designSystemData } = await import('../index.js');
-    const result = await designSystemData();
+    const result = await designSystemData('ce-button.json');
 
     expect(result).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));

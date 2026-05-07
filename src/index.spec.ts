@@ -165,7 +165,7 @@ describe('CLI index', () => {
   it('runs local svg generation flow and calls pipeline', async () => {
     process.env.COPILOT_MODEL = 'gpt-5-mini';
 
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
     inputQueue.push('./output');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -190,7 +190,7 @@ describe('CLI index', () => {
   it('generates an initial SDD on first run and warns that template-only is the default', async () => {
     process.env.COPILOT_MODEL = 'gpt-5-mini';
 
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
     inputQueue.push('./output');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -234,7 +234,7 @@ describe('CLI index', () => {
   });
 
   it('runs figma flow with single asset', async () => {
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'no');
     inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
 
     mockDownloadFigmaSvgs.mockResolvedValueOnce([{ name: 'Button', path: 'src/svg/button.svg' }]);
@@ -255,7 +255,7 @@ describe('CLI index', () => {
   });
 
   it('handles figma flow with multiple assets and selection', async () => {
-    selectQueue.push('generate', 'figma', 'src/svg/two.svg');
+    selectQueue.push('generate', 'figma', 'src/svg/two.svg', 'no');
     inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
 
     mockDownloadFigmaSvgs.mockResolvedValueOnce([
@@ -369,7 +369,7 @@ describe('CLI index', () => {
     inputQueue.length = 0;
 
     process.env.COPILOT_MODEL = 'gpt-5-mini';
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'no');
     inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
 
     mockDownloadFigmaSvgs.mockImplementationOnce(async (options: any) => {
@@ -397,7 +397,7 @@ describe('CLI index', () => {
 
   it('uses default output dir when output input is empty', async () => {
     process.env.COPILOT_MODEL = 'gpt-5-mini';
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
     inputQueue.push('   ');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -422,7 +422,7 @@ describe('CLI index', () => {
     const originalArgv = process.argv;
     process.argv = ['node', 'index.js', '.'];
 
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
     mockIsValidSvgPath.mockReturnValueOnce(true);
@@ -469,7 +469,7 @@ describe('CLI index', () => {
   });
 
   it('handles non-Error exception values in run catch', async () => {
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
     inputQueue.push('./output');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -565,7 +565,7 @@ describe('CLI index', () => {
 
   it('asks for FIGMA_TOKEN when missing in non-production and saves it in .env', async () => {
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'no');
     inputQueue.push(
       './output',
       'figma-token-value',
@@ -595,7 +595,7 @@ describe('CLI index', () => {
 
   it('uses --output=... argument as output directory', async () => {
     process.argv = ['node', 'index.js', '--output=./custom-out'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
     mockIsValidSvgPath.mockReturnValueOnce(true);
@@ -616,7 +616,7 @@ describe('CLI index', () => {
 
   it('falls back to prompt when --output= is empty', async () => {
     process.argv = ['node', 'index.js', '--output=   '];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
     inputQueue.push('./inline-empty-out');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -638,7 +638,7 @@ describe('CLI index', () => {
 
   it('falls back to prompt when --output flag has invalid value', async () => {
     process.argv = ['node', 'index.js', '--output', '-x'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
     inputQueue.push('./prompt-out');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -661,7 +661,7 @@ describe('CLI index', () => {
   it('persists FIGMA_TOKEN in runtime secrets for production with invalid secrets file', async () => {
     process.env.NODE_ENV = 'production';
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'no');
     inputQueue.push(
       './output',
       'prod-figma-token',
@@ -699,7 +699,7 @@ describe('CLI index', () => {
     const originalHome = process.env.HOME;
     process.env.HOME = '';
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'no');
     inputQueue.push(
       './output',
       'prod-no-home-token',
@@ -732,7 +732,7 @@ describe('CLI index', () => {
 
   it('uses --output <dir> flag form as output directory', async () => {
     process.argv = ['node', 'index.js', '--output', './flag-out'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
     mockIsValidSvgPath.mockReturnValueOnce(true);
@@ -753,7 +753,7 @@ describe('CLI index', () => {
 
   it('falls back to prompt when first CLI arg is an unknown flag', async () => {
     process.argv = ['node', 'index.js', '-x'];
-    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'no');
     inputQueue.push('./fallback-out');
 
     mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
@@ -804,7 +804,7 @@ describe('CLI index', () => {
 
   it('fails when FIGMA_TOKEN prompt returns empty value', async () => {
     delete process.env.FIGMA_TOKEN;
-    selectQueue.push('generate', 'figma');
+    selectQueue.push('generate', 'figma', 'no');
     inputQueue.push('./output', '   ');
 
     await import('./index.js');

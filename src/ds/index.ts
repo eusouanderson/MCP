@@ -1,5 +1,5 @@
 // service.ts
-import endpoints from './paths/endpoints.json' with { type: 'json' };
+import endpoints from './paths/index.json' with { type: 'json' };
 
 const URL_DS: string = process.env.URL_DS || 'https://hmg-ds.dmcview.com.br/components/';
 

@@ -1,3 +1,4 @@
+import { DsComponentRef } from '../ds/resolver.js';
 import { FigmaAsset } from '../integrations/interfaces.js';
 
 type SddData = Record<string, unknown>;
@@ -29,6 +30,7 @@ type McpContext = {
     generatedAt: string;
     assetsCount: number;
   };
+  dsComponents?: DsComponentRef[];
 };
 
 type PipelineStage =
@@ -52,6 +54,7 @@ type RunPipelineOptions = {
   assetsDir?: string;
   llmModel?: string;
   outputFileName?: string;
+  useDesignSystem?: boolean;
   hooks?: PipelineHooks;
 };
 
@@ -61,8 +64,15 @@ type PipelineResult = {
   assets: FigmaAsset[];
 };
 
+interface ExtractedSections {
+  templateBody: string;
+  scriptBody: string;
+}
+
 export type {
+  DsComponentRef,
   EnsureSddFileResult,
+  ExtractedSections,
   McpContext,
   PackageJsonData,
   PipelineHooks,

@@ -1,15 +1,16 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { buildScriptSetup, extractUsedDsComponents, fetchDsComponents } from '../ds/resolver.js';
 import { uploadSvgFromFile } from '../integrations/svg-upload.js';
 import { generateTemplate } from '../llm/llm-client.js';
 import { buildContext, SddData } from './context-builder.js';
-import { PipelineResult, PipelineStage, RunPipelineOptions } from './interfaces.js';
+import {
+  ExtractedSections,
+  PipelineResult,
+  PipelineStage,
+  RunPipelineOptions,
+} from './interfaces.js';
 import { buildPrompt } from './prompt-builder.js';
-
-interface ExtractedSections {
-  templateBody: string;
-  scriptBody: string;
-}
 
 const extractSections = (raw: string): ExtractedSections => {
   const cleanRaw = raw
@@ -18,12 +19,9 @@ const extractSections = (raw: string): ExtractedSections => {
     .replace(/```$/g, '')
     .trim();
 
-  // Greedy: captura do primeiro <template> ao ultimo </template>
   const templateMatch = cleanRaw.match(/<template>([\s\S]*)<\/template>/i);
-  // Greedy: captura do primeiro <script> ao ultimo </script>
   const scriptMatch = cleanRaw.match(/<script\b[^>]*>([\s\S]*)<\/script>/i);
 
-  // Fallback: remove tags <template> e </template> caso o LLM nao gerou corretamente
   const fallbackBody = cleanRaw
     .replace(/^<template>\s*/i, '')
     .replace(/\s*<\/template>[\s\S]*$/i, '')
@@ -35,7 +33,10 @@ const extractSections = (raw: string): ExtractedSections => {
   };
 };
 
-const createVueFileContent = (templateBody: string): string => {
+const createVueFileContent = (templateBody: string, scriptSetup?: string): string => {
+  if (scriptSetup) {
+    return `${scriptSetup}\n\n<template>\n${templateBody}\n</template>\n`;
+  }
   return `<template>\n${templateBody}\n</template>\n`;
 };
 
@@ -67,17 +68,54 @@ const runPipeline = async (options: RunPipelineOptions): Promise<PipelineResult>
     onProgress: options.hooks?.onProgress,
   });
 
+  let dsComponents = undefined;
+  if (options.useDesignSystem) {
+    options.hooks?.onProgress?.('Buscando componentes do design system...');
+    dsComponents = await fetchDsComponents(['form', 'icon', 'feedback']);
+  }
+
   options.hooks?.onStage?.('build-context');
-  const context = buildContext(sdd, assets);
+  const context = buildContext(sdd, assets, dsComponents);
 
   options.hooks?.onStage?.('build-prompt');
   const prompt = buildPrompt(context);
 
-  options.hooks?.onStage?.('call-llm');
-  const llmResult = await generateTemplate(prompt, options.llmModel);
+  const forceDsUsageSuffix = `
+ATENCAO FINAL (OBRIGATORIO):
+- O modo Design System esta ATIVO.
+- O output final deve usar componentes de "@comercti/vue-components" e/ou "@comercti/icons-hmg" quando houver equivalencia visual.
+- Nao retorne o SVG bruto como resultado final.
+- Inclua <script setup lang="ts"> com imports reais dos componentes usados.
+`;
 
-  const { templateBody } = extractSections(llmResult);
-  const vueFileContent = createVueFileContent(templateBody);
+  options.hooks?.onStage?.('call-llm');
+  let llmResult = await generateTemplate(prompt, options.llmModel);
+
+  let { templateBody, scriptBody } = extractSections(llmResult);
+  if (options.useDesignSystem && dsComponents && dsComponents.length > 0) {
+    const usedInFirstPass = extractUsedDsComponents(templateBody, dsComponents);
+    const scriptHasDsImports = /@comercti\/(vue-components|icons-hmg)/.test(scriptBody);
+
+    if (usedInFirstPass.length === 0 && !scriptHasDsImports) {
+      options.hooks?.onProgress?.(
+        'Primeira resposta sem componentes DS detectados. Reforcando prompt e tentando novamente...'
+      );
+      llmResult = await generateTemplate(`${prompt}\n${forceDsUsageSuffix}`, options.llmModel);
+      ({ templateBody, scriptBody } = extractSections(llmResult));
+    }
+  }
+
+  let scriptSetup: string | undefined;
+  if (options.useDesignSystem && dsComponents && dsComponents.length > 0) {
+    const usedComponents = extractUsedDsComponents(templateBody, dsComponents);
+    if (scriptBody && scriptBody.includes('@comercti')) {
+      scriptSetup = `<script setup lang="ts">\n${scriptBody}\n</script>`;
+    } else if (usedComponents.length > 0) {
+      scriptSetup = buildScriptSetup(usedComponents);
+    }
+  }
+
+  const vueFileContent = createVueFileContent(templateBody, scriptSetup);
 
   options.hooks?.onStage?.('save-file');
   const outputFileName = options.outputFileName ?? 'generated-template.vue';
@@ -99,3 +137,4 @@ const runPipeline = async (options: RunPipelineOptions): Promise<PipelineResult>
 
 export { runPipeline };
 export type { PipelineResult, PipelineStage, RunPipelineOptions };
+
