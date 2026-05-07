@@ -81,6 +81,7 @@ const uploadSvgFromFile = async (options: UploadSvgOptions): Promise<FigmaAsset[
       path: relativePath,
       content: svgContent,
       designInfo: persistedMetadata?.designInfo,
+      nodeDetails: persistedMetadata?.nodeDetails,
       designTokens: persistedMetadata?.designTokens,
     },
   ];

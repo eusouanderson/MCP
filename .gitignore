@@ -1,3 +1,19 @@
 .env
 .copilot/auth.json
 dist/.copilot/auth.json
+.copilot/
+**/.copilot/
+output/
+http
+# Dependencies and package manager caches
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+
+# Test and coverage artifacts
+coverage/
+
+# Vite/Vitest cache files inside node_modules
+node_modules/.vite/

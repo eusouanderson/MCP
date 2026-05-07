@@ -69,6 +69,37 @@ type FigmaDesignInfo = {
     fontSize?: number;
     fontWeight?: number;
   }>;
+  // Novos campos para enriquecer a extração
+  strokes?: Array<{
+    color?: string;
+    opacity?: number;
+    strokeWeight?: number;
+    strokeAlign?: string;
+  }>;
+  effects?: Array<{
+    type?: string;
+    visible?: boolean;
+    blendMode?: string;
+  }>;
+  components?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    properties?: Record<string, unknown>;
+  }>;
+  componentHierarchy?: {
+    name: string;
+    type: string;
+    children: Array<{ name: string; type: string }>;
+  };
+  boundVariables?: Record<string, string[]>;
+  fill?: {
+    type?: string;
+    color?: string;
+    opacity?: number;
+  };
+  rotation?: number;
+  opacity?: number;
 };
 
 type FigmaTailwindHints = {
@@ -103,6 +134,7 @@ type FigmaAsset = {
   path: string;
   content?: string;
   designInfo?: FigmaDesignInfo;
+  nodeDetails?: Record<string, unknown>;
   svgSummary?: string;
   svgContentForLlm?: string;
   tailwindHints?: FigmaTailwindHints;

@@ -91,8 +91,13 @@ const extractDesignInfo = (node: FigmaNode): FigmaDesignInfo => {
   const colorsSet = new Set<string>();
   const typography: FigmaDesignInfo['typography'] = [];
   const styleRefsMap = new Map<string, Set<string>>();
+  const components: FigmaDesignInfo['components'] = [];
+  const strokes: FigmaDesignInfo['strokes'] = [];
+  const effects: FigmaDesignInfo['effects'] = [];
+  const boundVariablesSet = new Set<string>();
 
   const walk = (n: FigmaNode) => {
+    // Textos e tipografia
     if (n.type === 'TEXT' && n.characters) {
       const text = n.characters.trim();
       if (text) {
@@ -108,12 +113,35 @@ const extractDesignInfo = (node: FigmaNode): FigmaDesignInfo => {
       }
     }
 
+    // Cores de preenchimento
     for (const fill of n.fills ?? []) {
       if (fill.color && fill.type === 'SOLID') {
         colorsSet.add(rgbaToHex(fill.color.r, fill.color.g, fill.color.b, fill.color.a));
       }
     }
 
+    // Strokes
+    for (const stroke of n.strokes ?? []) {
+      if (stroke.color && stroke.type === 'SOLID') {
+        strokes.push({
+          color: rgbaToHex(stroke.color.r, stroke.color.g, stroke.color.b, stroke.color.a),
+          opacity: stroke.opacity,
+          strokeWeight: n.strokeWeight,
+          strokeAlign: n.strokeAlign,
+        });
+      }
+    }
+
+    // Efeitos
+    for (const effect of n.effects ?? []) {
+      effects.push({
+        type: effect.type,
+        visible: effect.visible,
+        blendMode: effect.blendMode,
+      });
+    }
+
+    // Style refs
     if (n.styles) {
       for (const [styleType, styleId] of Object.entries(n.styles)) {
         if (!styleRefsMap.has(styleType)) {
@@ -123,6 +151,24 @@ const extractDesignInfo = (node: FigmaNode): FigmaDesignInfo => {
       }
     }
 
+    // Componentes (instances)
+    if ((n.type === 'INSTANCE' || n.type === 'COMPONENT') && n.name) {
+      components.push({
+        id: n.id,
+        name: n.name,
+        type: n.type,
+        properties: n.componentProperties || undefined,
+      });
+    }
+
+    // Bound variables (design tokens)
+    if (n.boundVariables) {
+      for (const key of Object.keys(n.boundVariables)) {
+        boundVariablesSet.add(key);
+      }
+    }
+
+    // Recursivo
     for (const child of n.children ?? []) {
       walk(child);
     }
@@ -136,11 +182,41 @@ const extractDesignInfo = (node: FigmaNode): FigmaDesignInfo => {
     styleRefs[key] = Array.from(set);
   }
 
+  const mainFill = node.fills?.[0];
+  const mainStroke = node.strokes?.[0];
+
   return {
     texts,
     colors: Array.from(colorsSet),
     styleRefs,
     typography,
+    strokes: strokes.length > 0 ? strokes : undefined,
+    effects: effects.length > 0 ? effects : undefined,
+    components: components.length > 0 ? components : undefined,
+    componentHierarchy: node.children
+      ? {
+          name: node.name || 'Root',
+          type: node.type,
+          children: (node.children ?? [])
+            .filter((c) => c.name)
+            .map((c) => ({ name: c.name, type: c.type })),
+        }
+      : undefined,
+    boundVariables:
+      boundVariablesSet.size > 0 ? { designTokens: Array.from(boundVariablesSet) } : undefined,
+    fill:
+      mainFill && mainFill.color && mainFill.type === 'SOLID'
+        ? {
+            type: mainFill.type,
+            color: rgbaToHex(
+              mainFill.color.r,
+              mainFill.color.g,
+              mainFill.color.b,
+              mainFill.color.a
+            ),
+            opacity: mainFill.opacity,
+          }
+        : undefined,
     layout: {
       mode: node.layoutMode !== 'NONE' ? node.layoutMode : undefined,
       padding:
@@ -159,6 +235,8 @@ const extractDesignInfo = (node: FigmaNode): FigmaDesignInfo => {
       primaryAxisAlign: node.primaryAxisAlignItems,
       counterAxisAlign: node.counterAxisAlignItems,
     },
+    rotation: node.rotation,
+    opacity: node.opacity,
   };
 };
 
@@ -395,9 +473,14 @@ const ensureSvgFile = async (
 
 const hasPersistableMetadata = (
   designInfo?: FigmaDesignInfo,
-  designTokens?: FigmaDesignTokens
+  designTokens?: FigmaDesignTokens,
+  nodeDetails?: Record<string, unknown>
 ): boolean => {
   if (designInfo) {
+    return true;
+  }
+
+  if (nodeDetails) {
     return true;
   }
 
@@ -545,12 +628,14 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
     let nodeName = `figma-node-${nodeId.replace(/:/g, '-')}`;
     let nodeType: string | undefined;
     let designInfo: FigmaDesignInfo | undefined;
+    let nodeDetailsRaw: Record<string, unknown> | undefined;
 
     try {
       const nodeDetails = await fetchJson<FigmaNodeDetailsResponse>(
         `${FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&depth=4`,
         figmaToken
       );
+      nodeDetailsRaw = nodeDetails.nodes?.[nodeId] as Record<string, unknown> | undefined;
       const docNode = nodeDetails.nodes?.[nodeId]?.document;
       if (docNode) {
         nodeType = docNode.type;
@@ -569,10 +654,11 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
     const svgContent = await downloadSvg(renderUrl);
     const assetsDir = options.assetsDir ?? process.cwd();
     const filePath = await ensureSvgFile(svgContent, nodeName, assetsDir);
-    if (hasPersistableMetadata(designInfo, fileTokens)) {
+    if (hasPersistableMetadata(designInfo, fileTokens, nodeDetailsRaw)) {
       await saveFigmaAssetMetadata(filePath, {
         designInfo,
         designTokens: fileTokens,
+        nodeDetails: nodeDetailsRaw,
       });
     }
     const relativePath = path.relative(process.cwd(), filePath).split(path.sep).join('/');
@@ -584,6 +670,7 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
         path: relativePath,
         content: svgContent,
         designInfo,
+        nodeDetails: nodeDetailsRaw,
         designTokens: fileTokens,
       },
     ];
@@ -669,11 +756,13 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
         const svgContent = await downloadSvg(renderUrl);
         const filePath = await ensureSvgFile(svgContent, nodeName, assetsDir);
         let nodeDesignInfo: FigmaDesignInfo | undefined;
+        let nodeDetailsRaw: Record<string, unknown> | undefined;
         try {
           const nodeDetails = await fetchJson<FigmaNodeDetailsResponse>(
             `${FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&depth=4`,
             figmaToken
           );
+          nodeDetailsRaw = nodeDetails.nodes?.[nodeId] as Record<string, unknown> | undefined;
           const docNode = nodeDetails.nodes?.[nodeId]?.document;
           if (docNode) {
             nodeDesignInfo = extractDesignInfo(docNode);
@@ -682,10 +771,11 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
           // Continua sem designInfo
         }
 
-        if (hasPersistableMetadata(nodeDesignInfo, fileTokens)) {
+        if (hasPersistableMetadata(nodeDesignInfo, fileTokens, nodeDetailsRaw)) {
           await saveFigmaAssetMetadata(filePath, {
             designInfo: nodeDesignInfo,
             designTokens: fileTokens,
+            nodeDetails: nodeDetailsRaw,
           });
         }
         const relativePath = path.relative(process.cwd(), filePath).split(path.sep).join('/');
@@ -696,6 +786,7 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
           path: relativePath,
           content: svgContent,
           designInfo: nodeDesignInfo,
+          nodeDetails: nodeDetailsRaw,
           designTokens: fileTokens,
         });
 

@@ -141,7 +141,6 @@ const toTailwindHints = (asset: FigmaAsset) => {
     notes.push(`styleRefs figma detectados: ${styleRefKeys.join(', ')}`);
   }
 
-  // Modo precisão máxima: enriquece com tokens de design mapeados
   const containerArray = enrichClassesWithTokens(Array.from(containerClasses), asset.designTokens);
   const colorArray = enrichClassesWithTokens(Array.from(colorClasses), asset.designTokens);
 
@@ -208,7 +207,6 @@ const buildContext = (
     suggestedComponent: `${toPascalCase(asset.name)}Icon`,
   }));
 
-  // Equilibra fidelidade e performance: resumo sempre, SVG inline apenas quando couber no limite.
   const assetsForLlm = assets.map((asset) => ({
     name: asset.name,
     path: asset.path,

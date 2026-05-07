@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { FigmaAsset } from './interfaces.js';
 
-type PersistedFigmaAssetMetadata = Pick<FigmaAsset, 'designInfo' | 'designTokens'>;
+type PersistedFigmaAssetMetadata = Pick<FigmaAsset, 'designInfo' | 'designTokens' | 'nodeDetails'>;
 
 const getFigmaMetadataPath = (svgFilePath: string): string => {
   const parsed = path.parse(svgFilePath);
@@ -18,6 +18,7 @@ const loadFigmaAssetMetadata = async (
     return {
       designInfo: parsed.designInfo,
       designTokens: parsed.designTokens,
+      nodeDetails: parsed.nodeDetails,
     };
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
