@@ -175,4 +175,27 @@ describe('uploadSvgFromFile', () => {
     expect(result).toHaveLength(1);
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalled(); // shouldWrite stays true
   });
+
+  it('loads persisted Figma metadata sidecar when present', async () => {
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><path/></svg>';
+    const metadataContent = JSON.stringify({
+      designInfo: { texts: ['Titulo'], colors: [], styleRefs: {}, layout: {}, typography: [] },
+      designTokens: { variables: [], styles: [], tokenToClassMap: { primary: 'text-[#000]' } },
+    });
+
+    vi.mocked(fs.readFile)
+      .mockResolvedValueOnce(svgContent as any)
+      .mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
+      .mockResolvedValueOnce(metadataContent as any);
+
+    const result = await uploadSvgFromFile({ svgFilePath: '/tmp/my-icon.svg', assetsDir: '/tmp' });
+
+    expect(result[0].designInfo?.texts).toEqual(['Titulo']);
+    expect(result[0].designTokens?.tokenToClassMap).toEqual({ primary: 'text-[#000]' });
+    expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
+      expect.stringContaining('my-icon.figma.json'),
+      expect.stringContaining('"designInfo"'),
+      'utf8'
+    );
+  });
 });

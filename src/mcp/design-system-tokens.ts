@@ -45,7 +45,7 @@ const valueToTailwindClass = (tokenName: string, value: string | number): string
   ) {
     const numValue = parseFloat(String(value));
     if (!isNaN(numValue)) {
-      return `p-${Math.round(numValue / 4)}`; // TailwindCSS usa rem, ~4px per unit
+      return `p-${Math.round(numValue / 4)}`;
     }
     return undefined;
   }

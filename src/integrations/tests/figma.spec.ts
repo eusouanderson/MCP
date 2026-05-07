@@ -22,6 +22,7 @@ vi.mock('node:fs/promises', () => ({
   writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 
+import process from 'node:process';
 import { __figmaTestUtils, downloadFigmaSvgs } from '../figma.js';
 
 const VALID_URL = 'https://www.figma.com/design/ABC123XYZ/my-file';
@@ -528,6 +529,64 @@ describe('downloadFigmaSvgs', () => {
     expect(assets).toHaveLength(1);
     expect(vi.mocked(writeFile)).not.toHaveBeenCalled();
     vi.mocked(readFile).mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+  });
+
+  it('persists figma metadata sidecar when design context exists', async () => {
+    const { writeFile } = await import('node:fs/promises');
+    const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/variables/local')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              variables: {
+                v1: { name: 'primaryColor', valuesByMode: { m1: '#00aa00' } },
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              images: { '1150:16805': 'https://cdn.figma.com/exports/test.svg' },
+            }),
+          });
+        }
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                '1150:16805': {
+                  document: {
+                    id: '1150:16805',
+                    name: 'Card',
+                    type: 'FRAME',
+                    characters: 'Hello',
+                    fills: [{ type: 'SOLID', color: { r: 0, g: 1, b: 0, a: 1 } }],
+                    styles: { fill: 'S:fill-1' },
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    await downloadFigmaSvgs({ figmaUrl: URL_WITH_NODE, assetsDir: '/tmp/test' });
+
+    expect(vi.mocked(writeFile)).toHaveBeenCalledWith(
+      expect.stringContaining('/tmp/test/svg/card.figma.json'),
+      expect.stringContaining('"designInfo"'),
+      'utf8'
+    );
   });
 
   it('uses fallback URL regex path (line 55) when URL has no protocol (new URL() throws)', async () => {
@@ -1540,7 +1599,7 @@ describe('downloadFigmaSvgs', () => {
 
     const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
     expect(assets).toHaveLength(1);
-    expect(assets[0].name).toBe('SolidRect');
+    expect(assets[0].name).toBe('Solidrect');
   });
 
   // Lines 221, 227, 261, 267: children collection branches with no children
@@ -1589,7 +1648,7 @@ describe('downloadFigmaSvgs', () => {
 
     const assets = await downloadFigmaSvgs({ figmaUrl: VALID_URL, assetsDir: '/tmp/test' });
     expect(assets).toHaveLength(1);
-    expect(assets[0].name).toBe('VectorNoChildren');
+    expect(assets[0].name).toBe('Vectornochildren');
   });
 
   // Line 319: variablesResponse.ok is false (failed fetch)
@@ -1782,6 +1841,8 @@ describe('downloadFigmaSvgs', () => {
 
   // Line 479: onProgress in non-production mode
   it('calls onProgress with dev-mode message when prompting token in development', async () => {
+    const { readFile } = await import('node:fs/promises');
+
     vi.unstubAllEnvs();
     process.env.NODE_ENV = 'development';
     delete process.env.FIGMA_TOKEN;
@@ -1844,7 +1905,7 @@ describe('downloadFigmaSvgs', () => {
     const assets = await downloadFigmaSvgs({ figmaUrl: URL_WITH_NODE, assetsDir: '/tmp/test' });
 
     expect(assets).toHaveLength(1);
-    expect(assets[0].name).toBe('CustomNodeName');
+    expect(assets[0].name).toBe('Customnodename');
   });
 
   // Lines 524-535: Node details with empty/whitespace name

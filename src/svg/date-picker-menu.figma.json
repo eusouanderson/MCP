@@ -1,0 +1,410 @@
+{
+  "designInfo": {
+    "texts": [
+      "Hoje",
+      "Ontem",
+      "Esta semana",
+      "Semana passada",
+      "Este mês",
+      "Último mês",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Hoje",
+      "Ontem",
+      "Esta semana",
+      "A semana passada",
+      "Este mês",
+      "Último mês",
+      "Este ano",
+      "Ano passado",
+      "Todos os tempos",
+      "Este mês",
+      "Últimos 2 meses",
+      "Últimos 6 meses",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Este mês",
+      "Últimos 2 meses",
+      "Últimos 6 meses",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Este ano",
+      "Últimos 2 anos",
+      "Últimos 6 anos",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Este ano",
+      "Últimos 2 anos",
+      "Últimos 6 anos",
+      "Este ano",
+      "Ano passado",
+      "Todos",
+      "Este ano",
+      "Ano passado",
+      "Todos"
+    ],
+    "colors": [
+      "#ffffff",
+      "#424242",
+      "#f5f5f5",
+      "#292929"
+    ],
+    "styleRefs": {
+      "effect": [
+        "3:49"
+      ],
+      "text": [
+        "3:53"
+      ]
+    },
+    "typography": [
+      {
+        "text": "Hoje",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ontem",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Esta semana",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Semana passada",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este mês",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Último mês",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Hoje",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ontem",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Esta semana",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "A semana passada",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este mês",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Último mês",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos os tempos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este mês",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 2 meses",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 6 meses",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este mês",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 2 meses",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 6 meses",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 2 anos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 6 anos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 2 anos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Últimos 6 anos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Este ano",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Ano passado",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      },
+      {
+        "text": "Todos",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 14,
+        "fontWeight": 500
+      }
+    ],
+    "layout": {
+      "width": 1285,
+      "height": 5852,
+      "cornerRadius": 5
+    }
+  },
+  "designTokens": {
+    "variables": [],
+    "styles": [],
+    "tokenToClassMap": {}
+  }
+}

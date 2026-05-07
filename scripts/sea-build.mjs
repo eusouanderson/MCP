@@ -40,7 +40,7 @@ execSync(`chmod +x ${OUTPUT}`);
 // 5. Inject the blob
 console.log('Injecting SEA blob with postject...');
 execSync(
-  `postject ${OUTPUT} NODE_SEA_BLOB ${BLOB} --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2`,
+  `npx postject ${OUTPUT} NODE_SEA_BLOB ${BLOB} --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2`,
   { stdio: 'inherit' }
 );
 

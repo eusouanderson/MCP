@@ -10,7 +10,7 @@ const toPascalCase = (value: string): string => {
     .join('');
 };
 
-const SVG_LLM_MAX_CHARS = 10000;
+const SVG_LLM_MAX_CHARS = 60000;
 
 const minifySvgForLlm = (svgContent: string): string => {
   return svgContent

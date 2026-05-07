@@ -3,6 +3,7 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'process';
 
 import path from 'node:path';
+import { saveFigmaAssetMetadata } from './figma-metadata-cache.js';
 import {
   DownloadFigmaSvgsOptions,
   FigmaAsset,
@@ -326,10 +327,16 @@ const fetchDesignTokens = async (
 
     for (const variable of variables.slice(0, 30)) {
       const varName = (variable as Record<string, string>).name || '';
-      const varValue =
-        ((variable as Record<string, Record<string, unknown>>).valuesByMode || {})[
-          Object.keys((variable as Record<string, Record<string, unknown>>).valuesByMode || {})[0]
-        ] || '';
+      const valuesByMode =
+        (variable as Record<string, Record<string, unknown> | undefined>).valuesByMode ?? {};
+      const firstModeKey = Object.keys(valuesByMode)[0];
+      const rawVarValue = firstModeKey ? valuesByMode[firstModeKey] : undefined;
+
+      if (!varName || rawVarValue === undefined || rawVarValue === null || rawVarValue === '') {
+        continue;
+      }
+
+      const varValue = String(rawVarValue);
 
       // Mapeia nomes comuns de tokens para classes
       if (varName.includes('color') || varName.includes('Color')) {
@@ -384,6 +391,25 @@ const ensureSvgFile = async (
   }
 
   return filePath;
+};
+
+const hasPersistableMetadata = (
+  designInfo?: FigmaDesignInfo,
+  designTokens?: FigmaDesignTokens
+): boolean => {
+  if (designInfo) {
+    return true;
+  }
+
+  if (!designTokens) {
+    return false;
+  }
+
+  return (
+    designTokens.variables.length > 0 ||
+    designTokens.styles.length > 0 ||
+    Object.keys(designTokens.tokenToClassMap).length > 0
+  );
 };
 
 const saveFigmaTokenInEnv = async (figmaToken: string): Promise<void> => {
@@ -483,12 +509,17 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
   }
 
   const { fileKey, nodeId } = parseFigmaUrl(options.figmaUrl);
+  options.onProgress?.(
+    `Figma request -> fileKey: ${fileKey}${nodeId ? ` | node-id: ${nodeId}` : ''}`
+  );
 
-  // Busca tokens do arquivo (modo precisão máxima)
   let fileTokens: undefined | Awaited<ReturnType<typeof fetchDesignTokens>>;
   try {
     options.onProgress?.('Buscando tokens de design do Figma...');
     fileTokens = await fetchDesignTokens(fileKey, figmaToken);
+    options.onProgress?.(
+      `Tokens Figma -> variaveis: ${fileTokens.variables.length} | mapeamentos: ${Object.keys(fileTokens.tokenToClassMap).length}`
+    );
     if (Object.keys(fileTokens.tokenToClassMap).length > 0) {
       options.onProgress?.(
         `Encontrados ${Object.keys(fileTokens.tokenToClassMap).length} tokens de design`
@@ -512,6 +543,7 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
     }
 
     let nodeName = `figma-node-${nodeId.replace(/:/g, '-')}`;
+    let nodeType: string | undefined;
     let designInfo: FigmaDesignInfo | undefined;
 
     try {
@@ -521,20 +553,30 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
       );
       const docNode = nodeDetails.nodes?.[nodeId]?.document;
       if (docNode) {
+        nodeType = docNode.type;
         if (docNode.name && docNode.name.trim().length > 0) {
           nodeName = docNode.name;
         }
         designInfo = extractDesignInfo(docNode);
       }
-    } catch {
-      // Se não conseguir ler detalhes, continua com nome padrão.
-    }
+    } catch {}
+
+    options.onProgress?.(
+      `Node Figma -> nome: ${nodeName}${nodeType ? ` | tipo: ${nodeType}` : ''}${designInfo ? ` | textos: ${designInfo.texts.length} | cores: ${designInfo.colors.length}` : ''}`
+    );
 
     options.onProgress?.('Baixando SVG do componente selecionado...');
     const svgContent = await downloadSvg(renderUrl);
     const assetsDir = options.assetsDir ?? process.cwd();
     const filePath = await ensureSvgFile(svgContent, nodeName, assetsDir);
+    if (hasPersistableMetadata(designInfo, fileTokens)) {
+      await saveFigmaAssetMetadata(filePath, {
+        designInfo,
+        designTokens: fileTokens,
+      });
+    }
     const relativePath = path.relative(process.cwd(), filePath).split(path.sep).join('/');
+    options.onProgress?.(`SVG gerado -> ${relativePath}`);
 
     return [
       {
@@ -550,7 +592,6 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
   options.onProgress?.('Buscando documento do Figma...');
 
   try {
-    // Usa depth=2 para ter mais profundidade mas manter resposta razoável
     const fileResponse = await fetchJson<FigmaFileResponse>(
       `${FIGMA_API_BASE}/files/${fileKey}?depth=2`,
       figmaToken
@@ -562,7 +603,6 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
 
     let exportableNodeInfo = collectExportableNodeIds(fileResponse.document);
 
-    // Se não encontrou nodes exportáveis, tenta coleta mais agressiva
     if (exportableNodeInfo.length === 0) {
       options.onProgress?.('Tentando coleta alternativa de elementos...');
       exportableNodeInfo = collectAllExportableIds(fileResponse.document);
@@ -579,6 +619,13 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
         `Encontrados ${exportableNodeInfo.length} assets. Gerando IDs de renderizacao...`
       );
     }
+
+    options.onProgress?.(
+      `Preview dos nodes -> ${exportableNodeInfo
+        .slice(0, 5)
+        .map((node) => node.name)
+        .join(', ')}`
+    );
 
     const nodeIds = exportableNodeInfo.map((node) => node.id);
     const nodeNames = new Map(exportableNodeInfo.map((node) => [node.id, node.name]));
@@ -621,9 +668,6 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
       try {
         const svgContent = await downloadSvg(renderUrl);
         const filePath = await ensureSvgFile(svgContent, nodeName, assetsDir);
-        const relativePath = path.relative(process.cwd(), filePath).split(path.sep).join('/');
-
-        // Tenta obter designInfo para cada node
         let nodeDesignInfo: FigmaDesignInfo | undefined;
         try {
           const nodeDetails = await fetchJson<FigmaNodeDetailsResponse>(
@@ -637,6 +681,14 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
         } catch {
           // Continua sem designInfo
         }
+
+        if (hasPersistableMetadata(nodeDesignInfo, fileTokens)) {
+          await saveFigmaAssetMetadata(filePath, {
+            designInfo: nodeDesignInfo,
+            designTokens: fileTokens,
+          });
+        }
+        const relativePath = path.relative(process.cwd(), filePath).split(path.sep).join('/');
 
         const componentName = toVueComponentName(nodeName);
         assets.push({
@@ -653,6 +705,8 @@ const downloadFigmaSvgs = async (options: DownloadFigmaSvgsOptions): Promise<Fig
         options.onProgress?.(`Erro ao baixar ${nodeName}: ${message}`);
       }
     }
+
+    options.onProgress?.(`Resumo Figma -> ${assets.length} SVG(s) baixado(s) com sucesso.`);
 
     return assets;
   } catch (error) {

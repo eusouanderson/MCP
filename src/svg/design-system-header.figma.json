@@ -1,0 +1,66 @@
+{
+  "designInfo": {
+    "texts": [
+      "Comerc Design System",
+      "Content dividers",
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.",
+      "Última atualização: DD/MM/AA"
+    ],
+    "colors": [
+      "#ffffff",
+      "#fafafa",
+      "#467541",
+      "#141414",
+      "#525252"
+    ],
+    "styleRefs": {
+      "text": [
+        "10681:9047",
+        "1021:31611",
+        "1:503"
+      ]
+    },
+    "typography": [
+      {
+        "text": "Comerc Design System",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 20,
+        "fontWeight": 400
+      },
+      {
+        "text": "Content dividers",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 60,
+        "fontWeight": 600
+      },
+      {
+        "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis.",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 20,
+        "fontWeight": 400
+      },
+      {
+        "text": "Última atualização: DD/MM/AA",
+        "fontFamily": "Acumin Variable Concept",
+        "fontSize": 20,
+        "fontWeight": 400
+      }
+    ],
+    "layout": {
+      "mode": "VERTICAL",
+      "padding": {
+        "top": 32,
+        "bottom": 32,
+        "left": 32,
+        "right": 32
+      },
+      "width": 2400,
+      "height": 542
+    }
+  },
+  "designTokens": {
+    "variables": [],
+    "styles": [],
+    "tokenToClassMap": {}
+  }
+}

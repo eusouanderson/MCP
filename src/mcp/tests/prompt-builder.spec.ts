@@ -13,11 +13,72 @@ describe('buildPrompt', () => {
     expect(buildPrompt(context)).toContain('<template>');
   });
 
+  it('always enforces template-only generation', () => {
+    const context = buildContext({}, []);
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('SOMENTE a secao <template>');
+    expect(prompt).not.toContain('obrigatoriamente as duas secoes');
+  });
+
+  it('includes additional LLM instructions from SDD', () => {
+    const context = buildContext(
+      {
+        generation: {
+          additionalLlmInstructions: ['Usar nomes de componentes do dominio de adesao'],
+        },
+      },
+      []
+    );
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('Instrucoes adicionais do projeto para esta geracao');
+    expect(prompt).toContain('Usar nomes de componentes do dominio de adesao');
+  });
+
+  it('includes component context from SDD in a dedicated section', () => {
+    const context = buildContext(
+      {
+        componentContext: {
+          type: 'banner',
+          purpose: 'Exibir mensagem institucional',
+        },
+      },
+      []
+    );
+
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('Contexto do componente');
+    expect(prompt).toContain('"type": "banner"');
+    expect(prompt).toContain('"purpose": "Exibir mensagem institucional"');
+  });
+
+  it('includes workspace context from SDD in a dedicated section', () => {
+    const context = buildContext(
+      {
+        workspaceContext: {
+          projectName: 'mcp-frontend',
+          detectedStack: ['Vue 3'],
+        },
+      },
+      []
+    );
+
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('Contexto do workspace');
+    expect(prompt).toContain('"projectName": "mcp-frontend"');
+    expect(prompt).toContain('"detectedStack"');
+  });
+
   it('serializes SDD data as formatted JSON', () => {
     const context = buildContext({ title: 'My Design', description: 'A test' }, []);
     const prompt = buildPrompt(context);
-    expect(prompt).toContain('"title": "My Design"');
-    expect(prompt).toContain('"description": "A test"');
+    expect(prompt).toContain('Objetivo da geracao');
+    expect(prompt).toContain(
+      'Gerar somente o template Vue com base no SVG e no contexto visual do componente.'
+    );
   });
 
   it('includes asset paths in the prompt', () => {

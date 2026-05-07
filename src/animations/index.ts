@@ -1,22 +1,25 @@
 import chalk from 'chalk';
 import logSymbols from 'log-symbols';
 import ora from 'ora';
+import type { LoadingHandle } from './interfaces.js';
 
-type LoadingHandle = {
-  stop: () => void;
+const DEFAULT_DIVIDER_LENGTH = 56;
+
+const getDividerLength = (): number => {
+  return process.stdout.columns ?? DEFAULT_DIVIDER_LENGTH;
 };
 
-const DIVIDER_LENGTH = 56;
-
 const divider = (label?: string): void => {
+  const dividerLength = getDividerLength();
+
   if (!label) {
-    console.log(chalk.gray('─'.repeat(DIVIDER_LENGTH)));
+    console.log(chalk.gray('─'.repeat(dividerLength)));
     return;
   }
 
   const normalized = ` ${label.trim().toUpperCase()} `;
-  const side = Math.max(2, Math.floor((DIVIDER_LENGTH - normalized.length) / 2));
-  const right = Math.max(2, DIVIDER_LENGTH - normalized.length - side);
+  const side = Math.max(2, Math.floor((dividerLength - normalized.length) / 2));
+  const right = Math.max(2, dividerLength - normalized.length - side);
   console.log(chalk.gray(`${'─'.repeat(side)}${normalized}${'─'.repeat(right)}`));
 };
 

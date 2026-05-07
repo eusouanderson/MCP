@@ -1,17 +1,25 @@
-const URL_DS: string = process.env.URL_DS || '';
+// service.ts
+import endpoints from './paths/endpoints.json' with { type: 'json' };
 
-const designSystemData = async () => {
+const URL_DS: string = process.env.URL_DS || 'https://hmg-ds.dmcview.com.br/components/';
+
+const designSystemData = async (endpoint: string) => {
   try {
-    const response = await fetch(URL_DS);
+    const response = await fetch(`${URL_DS}/${endpoint}`);
+
     if (!response.ok) {
-      throw new Error('Erro ao buscar dados');
+      throw new Error(`Erro ao buscar ${endpoint}`);
     }
-    const data = await response.json();
-    return data;
+
+    return await response.json();
   } catch (error) {
     console.error(error);
     return null;
   }
 };
 
-export { designSystemData };
+const getAllDesignSystemData = async () => {
+  return Promise.all(endpoints.map(designSystemData));
+};
+
+export { designSystemData, endpoints, getAllDesignSystemData };

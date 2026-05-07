@@ -35,9 +35,8 @@ const extractSections = (raw: string): ExtractedSections => {
   };
 };
 
-const createVueFileContent = (templateBody: string, scriptBody: string): string => {
-  const script = scriptBody || '// sem variaveis';
-  return `<template>\n${templateBody}\n</template>\n\n<script setup>\n${script}\n</script>\n`;
+const createVueFileContent = (templateBody: string): string => {
+  return `<template>\n${templateBody}\n</template>\n`;
 };
 
 const toFriendlyWriteError = (error: unknown, outputDir: string): Error => {
@@ -77,8 +76,8 @@ const runPipeline = async (options: RunPipelineOptions): Promise<PipelineResult>
   options.hooks?.onStage?.('call-llm');
   const llmResult = await generateTemplate(prompt, options.llmModel);
 
-  const { templateBody, scriptBody } = extractSections(llmResult);
-  const vueFileContent = createVueFileContent(templateBody, scriptBody);
+  const { templateBody } = extractSections(llmResult);
+  const vueFileContent = createVueFileContent(templateBody);
 
   options.hooks?.onStage?.('save-file');
   const outputFileName = options.outputFileName ?? 'generated-template.vue';

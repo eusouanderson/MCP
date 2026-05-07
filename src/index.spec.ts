@@ -20,6 +20,8 @@ const mockListSvgFilesInDirectory = vi.hoisted(() => vi.fn());
 const mockIsValidSvgPath = vi.hoisted(() => vi.fn());
 const mockRunPipeline = vi.hoisted(() => vi.fn());
 const mockGetValidAccessToken = vi.hoisted(() => vi.fn());
+const mockRefreshAccessToken = vi.hoisted(() => vi.fn());
+const mockEnsureSddFile = vi.hoisted(() => vi.fn());
 
 vi.mock('boxen', () => ({
   default: (text: string) => text,
@@ -37,7 +39,21 @@ vi.mock('chalk', () => ({
 vi.mock('enquirer', () => ({
   default: {
     Select: class {
+      private options: { name?: string };
+
+      constructor(options: { name?: string }) {
+        this.options = options;
+      }
+
       run(): Promise<string> {
+        if (this.options?.name === 'inputAction') {
+          const queued = selectQueue[0];
+          if (queued === 'enter' || queued === '__back__') {
+            return Promise.resolve(selectQueue.shift() as string);
+          }
+          return Promise.resolve('enter');
+        }
+
         const value = selectQueue.shift();
         if (typeof value === 'undefined') {
           throw new Error('Select queue vazia');
@@ -75,6 +91,7 @@ vi.mock('./copilot/provider.js', () => ({
   copilotRuntime: {
     auth: {
       getValidAccessToken: mockGetValidAccessToken,
+      refreshAccessToken: mockRefreshAccessToken,
     },
     fetchModels: mockFetchModels,
   },
@@ -93,6 +110,10 @@ vi.mock('./mcp/pipeline.js', () => ({
   runPipeline: mockRunPipeline,
 }));
 
+vi.mock('./mcp/sdd-generator.js', () => ({
+  ensureSddFile: mockEnsureSddFile,
+}));
+
 describe('CLI index', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -106,7 +127,12 @@ describe('CLI index', () => {
     process.env.COPILOT_TOKEN = 'test-copilot-token';
     process.env.FIGMA_TOKEN = 'test-figma-token';
     mockGetValidAccessToken.mockResolvedValue('oauth-token');
+    mockRefreshAccessToken.mockResolvedValue('oauth-token-refreshed');
     mockReadFile.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    mockEnsureSddFile.mockResolvedValue({
+      sddPath: '/tmp/project/src/docs/sdd.json',
+      created: false,
+    });
   });
 
   afterEach(() => {
@@ -153,9 +179,41 @@ describe('CLI index', () => {
     await import('./index.js');
 
     await vi.waitFor(() => {
+      expect(mockEnsureSddFile).toHaveBeenCalledOnce();
       expect(mockRunPipeline).toHaveBeenCalledOnce();
       expect(mockSuccess).toHaveBeenCalledWith(
         expect.stringContaining('Template Vue gerado com sucesso')
+      );
+    });
+  });
+
+  it('generates an initial SDD on first run and warns that template-only is the default', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg');
+    inputQueue.push('./output');
+
+    mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
+    mockIsValidSvgPath.mockReturnValueOnce(true);
+    mockEnsureSddFile.mockResolvedValueOnce({
+      sddPath: '/tmp/project/src/docs/sdd.json',
+      created: true,
+    });
+    mockRunPipeline.mockResolvedValueOnce({
+      outputFilePath: '/tmp/project/output/generated-template.vue',
+      assets: [{ name: 'Icon', path: 'src/svg/icon.svg' }],
+      template: '<div />',
+    });
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('SDD inicial gerado automaticamente')
+      );
+      expect(mockMessage).toHaveBeenCalledWith(expect.stringContaining('template-only'));
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        expect.objectContaining({ sddPath: '/tmp/project/src/docs/sdd.json' })
       );
     });
   });
@@ -754,6 +812,238 @@ describe('CLI index', () => {
     await vi.waitFor(() => {
       expect(mockError).toHaveBeenCalledWith(expect.stringContaining('Token do Figma invalido'));
       expect(process.exitCode).toBe(1);
+    });
+  });
+
+  it('returns to main menu when configure-figma-token flow is cancelled', async () => {
+    selectQueue.push('configure-figma-token', '__back__', 'exit');
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('runs reconnect-copilot menu option', async () => {
+    selectQueue.push('reconnect-copilot', 'exit');
+    mockFetchModels.mockResolvedValueOnce([]);
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockRefreshAccessToken).toHaveBeenCalledOnce();
+      expect(mockSuccess).toHaveBeenCalledWith(
+        expect.stringContaining('Conexao com Copilot refeita com sucesso')
+      );
+    });
+  });
+
+  it('handles reconnect-copilot failure and reports error', async () => {
+    selectQueue.push('reconnect-copilot', 'exit');
+    mockRefreshAccessToken.mockRejectedValueOnce(new Error('refresh-failed'));
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockError).toHaveBeenCalledWith(
+        expect.stringContaining('Nao foi possivel refazer a conexao com Copilot: refresh-failed')
+      );
+    });
+  });
+
+  it('returns to main menu when configure-llm selection is back', async () => {
+    selectQueue.push('configure-llm', '__back__', 'exit');
+    mockFetchModels.mockResolvedValueOnce([
+      {
+        id: 'gpt-5-mini',
+        name: 'GPT-5 Mini',
+        capabilities: { reasoning: false, vision: false },
+      },
+    ]);
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+  });
+
+  it('updates figma token from configure-figma-token menu option', async () => {
+    selectQueue.push('configure-figma-token', 'exit');
+    inputQueue.push('new-figma-token');
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        expect.stringContaining('.env'),
+        expect.stringContaining('FIGMA_TOKEN=new-figma-token'),
+        'utf8'
+      );
+      expect(mockSuccess).toHaveBeenCalledWith(
+        expect.stringContaining('FIGMA_TOKEN atualizado com sucesso')
+      );
+    });
+  });
+
+  it('fails when configure-figma-token receives empty token value', async () => {
+    selectQueue.push('configure-figma-token');
+    inputQueue.push('   ');
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockError).toHaveBeenCalledWith(expect.stringContaining('Token do Figma invalido'));
+      expect(process.exitCode).toBe(1);
+    });
+  });
+
+  it('returns to menu when output directory prompt is cancelled', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', '__back__', 'exit');
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('returns to menu when source type selection is back', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'back', 'exit');
+    inputQueue.push('./output');
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(expect.stringContaining('IA configurada'));
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('returns to menu when local SVG selection is back', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'local', '__back__', 'exit');
+    inputQueue.push('./output');
+    mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('returns to menu when ensureFigmaToken is cancelled', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    delete process.env.FIGMA_TOKEN;
+    selectQueue.push('generate', 'figma', '__back__', 'exit');
+    inputQueue.push('./output');
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('FIGMA_TOKEN nao encontrado')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('returns to menu when figma URL input is cancelled', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'figma', '__back__', 'exit');
+    inputQueue.push('./output');
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockDownloadFigmaSvgs).not.toHaveBeenCalled();
+    });
+  });
+
+  it('returns to menu when multiple figma assets selection is back', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'figma', 'enter', '__back__', 'exit');
+    inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
+
+    mockDownloadFigmaSvgs.mockResolvedValueOnce([
+      { name: 'One', path: 'src/svg/one.svg' },
+      { name: 'Two', path: 'src/svg/two.svg' },
+    ]);
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockDownloadFigmaSvgs).toHaveBeenCalledOnce();
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+    });
+  });
+
+  it('handles invalid figma token error and returns when user chooses back', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'figma', 'enter', 'back', 'exit');
+    inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
+
+    mockDownloadFigmaSvgs.mockRejectedValueOnce(
+      new Error('Falha na API do Figma (403): invalid token')
+    );
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockError).toHaveBeenCalledWith(
+        expect.stringContaining('Falha na API do Figma: token invalido (403)')
+      );
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('handles invalid figma token retry flow when token update is cancelled', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'figma', 'retry-with-new-token', '__back__', 'exit');
+    inputQueue.push('./output', 'https://www.figma.com/design/KEY/file?node-id=1-1');
+
+    mockDownloadFigmaSvgs.mockRejectedValueOnce(
+      new Error('Falha na API do Figma (403): invalid token')
+    );
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockError).toHaveBeenCalledWith(
+        expect.stringContaining('Falha na API do Figma: token invalido (403)')
+      );
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
     });
   });
 });

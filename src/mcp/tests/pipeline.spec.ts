@@ -115,4 +115,20 @@ describe('runPipeline', () => {
 
     await expect(runPipeline(BASE_OPTIONS)).rejects.toThrow('string-error-value');
   });
+
+  it('writes only the template block to the output file', async () => {
+    const { writeFile } = await import('node:fs/promises');
+
+    vi.mocked(generateTemplate).mockResolvedValueOnce(
+      '<template><div>Only Template</div></template>'
+    );
+
+    await runPipeline(BASE_OPTIONS);
+
+    expect(vi.mocked(writeFile)).toHaveBeenCalledWith(
+      expect.any(String),
+      '<template>\n<div>Only Template</div>\n</template>\n',
+      'utf8'
+    );
+  });
 });

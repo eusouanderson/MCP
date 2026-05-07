@@ -2,6 +2,19 @@ import { FigmaAsset } from '../integrations/interfaces.js';
 
 type SddData = Record<string, unknown>;
 
+type EnsureSddFileResult = {
+  sddPath: string;
+  created: boolean;
+};
+
+type PackageJsonData = {
+  name?: string;
+  version?: string;
+  packageManager?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+};
+
 type VueAssetHint = {
   assetName: string;
   filePath: string;
@@ -49,7 +62,9 @@ type PipelineResult = {
 };
 
 export type {
+  EnsureSddFileResult,
   McpContext,
+  PackageJsonData,
   PipelineHooks,
   PipelineResult,
   PipelineStage,

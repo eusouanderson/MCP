@@ -235,7 +235,7 @@ describe('buildContext', () => {
   });
 
   it('omits svgContentForLlm when minified SVG is above max size', () => {
-    const hugePath = 'M0 0 '.repeat(2500);
+    const hugePath = 'M0 0 '.repeat(15000);
     const hugeSvg = `<svg><path d="${hugePath}"/></svg>`;
     const context = buildContext({}, [{ name: 'huge', path: 'huge.svg', content: hugeSvg }]);
 

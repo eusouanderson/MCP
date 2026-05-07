@@ -1,12 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { FigmaAsset } from './interfaces.js';
-
-type UploadSvgOptions = {
-  svgFilePath: string;
-  assetsDir?: string;
-  onProgress?: (message: string) => void;
-};
+import { loadFigmaAssetMetadata, saveFigmaAssetMetadata } from './figma-metadata-cache.js';
+import { FigmaAsset, UploadSvgOptions } from './interfaces.js';
 
 const SVG_DIR_NAME = 'svg';
 
@@ -65,13 +60,18 @@ const uploadSvgFromFile = async (options: UploadSvgOptions): Promise<FigmaAsset[
       shouldWrite = false;
       options.onProgress?.('Cache de SVG utilizado, sem novo download.');
     }
-  } catch {
-    // Sem cache anterior.
-  }
+  } catch {}
 
   if (shouldWrite) {
     options.onProgress?.('Copiando SVG para src/svg/...');
     await writeFile(destinationPath, svgContent, 'utf8');
+  }
+
+  const persistedMetadata = await loadFigmaAssetMetadata(sourcePath);
+
+  if (persistedMetadata) {
+    options.onProgress?.('Carregando contexto persistido do Figma...');
+    await saveFigmaAssetMetadata(destinationPath, persistedMetadata);
   }
 
   const relativePath = path.relative(process.cwd(), destinationPath).split(path.sep).join('/');
@@ -80,6 +80,8 @@ const uploadSvgFromFile = async (options: UploadSvgOptions): Promise<FigmaAsset[
       name: normalizedName,
       path: relativePath,
       content: svgContent,
+      designInfo: persistedMetadata?.designInfo,
+      designTokens: persistedMetadata?.designTokens,
     },
   ];
 };

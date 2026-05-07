@@ -115,6 +115,12 @@ type DownloadFigmaSvgsOptions = {
   onProgress?: (message: string) => void;
 };
 
+type UploadSvgOptions = {
+  svgFilePath: string;
+  assetsDir?: string;
+  onProgress?: (message: string) => void;
+};
+
 export type {
   DownloadFigmaSvgsOptions,
   FigmaAsset,
@@ -129,4 +135,5 @@ export type {
   FigmaTailwindHints,
   FigmaTypeStyle,
   FigmaVariable,
+  UploadSvgOptions,
 };

@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@types/node':
-        specifier: ^25.6.0
-        version: 25.6.0
       boxen:
         specifier: ^8.0.1
         version: 8.0.1
@@ -23,9 +20,6 @@ importers:
       enquirer:
         specifier: ^2.4.1
         version: 2.4.1
-      groq-sdk:
-        specifier: ^1.1.2
-        version: 1.1.2
       log-symbols:
         specifier: ^7.0.1
         version: 7.0.1
@@ -33,6 +27,9 @@ importers:
         specifier: ^9.4.0
         version: 9.4.0
     devDependencies:
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.6.0
       '@vitest/coverage-v8':
         specifier: ^4.1.5
         version: 4.1.5(vitest@4.1.5)
@@ -42,6 +39,9 @@ importers:
       esbuild:
         specifier: ^0.25.11
         version: 0.25.12
+      postject:
+        specifier: ^1.0.0-alpha.6
+        version: 1.0.0-alpha.6
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -872,10 +872,6 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
-
-  groq-sdk@1.1.2:
-    resolution: {integrity: sha512-CZO0XUQQDhn43ri1+lZHxZKpb+bGutgTvFmCJtooexiitGmPqhm1hntOT3nCoaq07e+OpeokVnfUs0i/oQuUaQ==}
-    hasBin: true
 
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
@@ -2147,8 +2143,6 @@ snapshots:
   github-from-package@0.0.0: {}
 
   graceful-fs@4.2.11: {}
-
-  groq-sdk@1.1.2: {}
 
   has-flag@4.0.0: {}
 
