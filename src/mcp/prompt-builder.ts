@@ -62,15 +62,16 @@ const ASSET_INTERPRETATION_RULES_WITH_DS = [
 
 const DS_USAGE_RULES = [
   '1. Use componentes do design system (@comercti/vue-components) em vez de elementos HTML nativos sempre que existir um componente equivalente.',
-  '2. Para campos de texto/input, use <Ceinput> em vez de <input>.',
-  '3. Para botoes, use <CeButton> em vez de <button>.',
-  '4. Para select/dropdown, use <CeSelectField> ou <CeDropdown> em vez de <select>.',
-  '5. Para textarea, use <CeTextarea> em vez de <textarea>.',
-  '6. Para checkbox, use <CeCheckboxField> em vez de <input type="checkbox">.',
-  '7. Para icones, use <CeSvgIcon :icon="nomeDoIcone" /> (icones de @comercti/icons-hmg).',
-  '8. Passe props de forma declarativa. Ex: <Ceinput label="Nome" placeholder="Digite..." v-model="valor" />.',
-  '9. Se um componente do DS nao se encaixa bem, use o elemento HTML nativo com TailwindCSS.',
-  '10. NAO invente nomes de componentes: use APENAS os listados na secao "Design System disponivel".',
+  '2. No TEMPLATE, use SEMPRE tags kebab-case: <ce-input>, <ce-button>, <ce-select>, etc.',
+  '3. Para campos de texto/input, use <ce-input> em vez de <input>.',
+  '4. Para botoes, use <ce-button> em vez de <button>.',
+  '5. Para select/dropdown, use <ce-select> ou <ce-dropdown> em vez de <select>.',
+  '6. Para textarea, use <ce-textarea> em vez de <textarea>.',
+  '7. Para checkbox, use <ce-checkbox> em vez de <input type="checkbox">.',
+  '8. Para icones, use <ce-svg-icon :icon="nomeDoIcone" /> (icones de @comercti/icons-hmg).',
+  '9. PROIBIDO no template: tags PascalCase como <CeInputField>, <CeInput>, <CeButton>.',
+  '10. Se um componente do DS nao se encaixa bem, use o elemento HTML nativo com TailwindCSS.',
+  '11. NAO invente nomes de componentes: use APENAS os listados na secao "Design System disponivel".',
 ];
 
 const getGoal = (context: McpContext): string | undefined => {
@@ -124,7 +125,7 @@ const buildDsSection = (dsComponents: DsComponentRef[]): string => {
 
   const lines = dsComponents.map(
     (c) =>
-      `- <${c.componentName}> (tag: <${c.tagName}>) — ${c.description}\n  Props: ${c.props.replace(/\n/g, ' ').slice(0, 300)}`
+      `- tag: <${c.tagName}> | import: ${c.componentName} — ${c.description}\n  Props: ${c.props.replace(/\n/g, ' ').slice(0, 300)}`
   );
 
   return `\nDesign System disponivel (@comercti/vue-components):\n${lines.join('\n')}\n`;
@@ -156,11 +157,12 @@ const buildPrompt = (context: McpContext): string => {
   const outputFormatSection = hasDs
     ? `Formato de saida esperado (exatamente assim, sem nada antes ou depois):
 <script setup lang="ts">
-import { CeButton, Ceinput } from '@comercti/vue-components'
+import { CeButton, CeInput } from '@comercti/vue-components'
 // ... somente os imports dos componentes usados
 </script>
 <template>
-  ...
+  <ce-input label="Nome" />
+  <ce-button>Salvar</ce-button>
 </template>`
     : `Formato de saida esperado (exatamente assim, sem nada antes ou depois):
 <template>

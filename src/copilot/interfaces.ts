@@ -131,6 +131,7 @@ type CopilotFetchOptions = {
   auth: CopilotAuthManager;
   maxRetries?: number;
   retryDelayMs?: number;
+  timeoutMs?: number; // Timeout em milissegundos (padrão: 120s para LLM)
   retryStatusCodes?: number[];
   userAgent?: string;
   logger?: Logger;

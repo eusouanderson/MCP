@@ -55,6 +55,57 @@ const toFriendlyWriteError = (error: unknown, outputDir: string): Error => {
   return error instanceof Error ? error : new Error(String(error));
 };
 
+const normalizeLegacyDsAliases = (value: string): string => {
+  return value
+    .replace(/CeInputField\b/g, 'CeInput')
+    .replace(/Ceinput\b/g, 'CeInput')
+    .replace(/ce-input-field\b/g, 'ce-input')
+    .replace(/CeSelectField\b/g, 'CeSelect')
+    .replace(/ce-select-field\b/g, 'ce-select')
+    .replace(/CeCheckboxField\b/g, 'CeCheckbox')
+    .replace(/ce-checkbox-field\b/g, 'ce-checkbox')
+    .replace(/CeGroupRadioField\b/g, 'CeGroupRadio')
+    .replace(/ce-group-radio-field\b/g, 'ce-group-radio');
+};
+
+const normalizeDsTemplateTagNames = (
+  template: string,
+  dsComponents: { componentName: string; tagName: string }[]
+): string => {
+  let normalized = template;
+
+  for (const component of dsComponents) {
+    const openTag = new RegExp(`<${component.componentName}(?=[\\s/>])`, 'g');
+    const closeTag = new RegExp(`</${component.componentName}(?=[\\s>])`, 'g');
+    normalized = normalized.replace(openTag, `<${component.tagName}`);
+    normalized = normalized.replace(closeTag, `</${component.tagName}`);
+  }
+
+  return normalized;
+};
+
+const normalizeAllCeComponentsToKebab = (template: string): string => {
+  let normalized = template;
+
+  // Match any <Ce*> tag and convert to kebab-case, e.g. <CeBadge> → <ce-badge>
+  // Handles: CeButton, CeBadge, CeModal, CeSvgIcon, etc.
+  const pascalCeTagRegex = /<(Ce[A-Z][a-zA-Z0-9]*)\b/g;
+  normalized = normalized.replace(pascalCeTagRegex, (match, componentName: string) => {
+    // Convert PascalCase to kebab-case: CeBadge → ce-badge
+    const kebab = componentName.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+    return `<${kebab}`;
+  });
+
+  // Also handle closing tags
+  const closingPascalCeTagRegex = /<\/(Ce[A-Z][a-zA-Z0-9]*)\b/g;
+  normalized = normalized.replace(closingPascalCeTagRegex, (match, componentName: string) => {
+    const kebab = componentName.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+    return `</${kebab}`;
+  });
+
+  return normalized;
+};
+
 const runPipeline = async (options: RunPipelineOptions): Promise<PipelineResult> => {
   options.hooks?.onStage?.('read-sdd');
   const sddRaw = await readFile(options.sddPath, 'utf8');
@@ -92,6 +143,10 @@ ATENCAO FINAL (OBRIGATORIO):
   let llmResult = await generateTemplate(prompt, options.llmModel);
 
   let { templateBody, scriptBody } = extractSections(llmResult);
+  if (options.useDesignSystem) {
+    templateBody = normalizeLegacyDsAliases(templateBody);
+    scriptBody = normalizeLegacyDsAliases(scriptBody);
+  }
   if (options.useDesignSystem && dsComponents && dsComponents.length > 0) {
     const usedInFirstPass = extractUsedDsComponents(templateBody, dsComponents);
     const scriptHasDsImports = /@comercti\/(vue-components|icons-hmg)/.test(scriptBody);
@@ -102,7 +157,12 @@ ATENCAO FINAL (OBRIGATORIO):
       );
       llmResult = await generateTemplate(`${prompt}\n${forceDsUsageSuffix}`, options.llmModel);
       ({ templateBody, scriptBody } = extractSections(llmResult));
+      templateBody = normalizeLegacyDsAliases(templateBody);
+      scriptBody = normalizeLegacyDsAliases(scriptBody);
     }
+
+    templateBody = normalizeDsTemplateTagNames(templateBody, dsComponents);
+    templateBody = normalizeAllCeComponentsToKebab(templateBody);
   }
 
   let scriptSetup: string | undefined;
@@ -137,4 +197,3 @@ ATENCAO FINAL (OBRIGATORIO):
 
 export { runPipeline };
 export type { PipelineResult, PipelineStage, RunPipelineOptions };
-

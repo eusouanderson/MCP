@@ -51,10 +51,25 @@ const ENDPOINT_CATEGORIES: Record<string, DsComponentCategory> = {
 };
 
 const ENDPOINT_COMPONENT_NAME_OVERRIDES: Record<string, string> = {
-  'ce-input-field.json': 'Ceinput',
+  'ce-input-field.json': 'CeInput',
+  'ce-select-field.json': 'CeSelect',
+  'ce-checkbox-field.json': 'CeCheckbox',
+  'ce-group-radio-field.json': 'CeGroupRadio',
+};
+
+const ENDPOINT_TAG_NAME_OVERRIDES: Record<string, string> = {
+  'ce-input-field.json': 'ce-input',
+  'ce-select-field.json': 'ce-select',
+  'ce-checkbox-field.json': 'ce-checkbox',
+  'ce-group-radio-field.json': 'ce-group-radio',
 };
 
 const endpointToTagName = (endpoint: string): string => {
+  const overrideTag = ENDPOINT_TAG_NAME_OVERRIDES[endpoint];
+  if (overrideTag) {
+    return overrideTag;
+  }
+
   return endpoint.replace('.json', '');
 };
 
@@ -79,8 +94,11 @@ const buildCompactRef = (
 ): DsComponentRef | null => {
   if (!data || typeof data !== 'object') return null;
 
+  const rawComponentName = (data.nomeComponente as string | undefined)?.trim();
   const componentName =
-    (data.nomeComponente as string | undefined) || endpointToComponentName(endpoint);
+    ENDPOINT_COMPONENT_NAME_OVERRIDES[endpoint] ||
+    rawComponentName ||
+    endpointToComponentName(endpoint);
   const vueData = data.vue as { props?: string } | undefined;
   const rawProps = vueData?.props ?? '';
   const props =

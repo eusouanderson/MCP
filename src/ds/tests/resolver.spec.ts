@@ -7,7 +7,7 @@ vi.mock('../index.js', () => ({
 describe('endpointToComponentName', () => {
   it('converts kebab-case endpoint to PascalCase component name', async () => {
     const { endpointToComponentName } = await import('../resolver.js');
-    expect(endpointToComponentName('ce-input-field.json')).toBe('Ceinput');
+    expect(endpointToComponentName('ce-input-field.json')).toBe('CeInput');
     expect(endpointToComponentName('ce-button.json')).toBe('CeButton');
     expect(endpointToComponentName('ce-svg-icon.json')).toBe('CeSvgIcon');
     expect(endpointToComponentName('ce-date-picker.json')).toBe('CeDatePicker');
@@ -18,7 +18,7 @@ describe('endpointToTagName', () => {
   it('removes .json extension from endpoint', async () => {
     const { endpointToTagName } = await import('../resolver.js');
     expect(endpointToTagName('ce-button.json')).toBe('ce-button');
-    expect(endpointToTagName('ce-input-field.json')).toBe('ce-input-field');
+    expect(endpointToTagName('ce-input-field.json')).toBe('ce-input');
   });
 });
 
@@ -36,8 +36,8 @@ describe('extractUsedDsComponents', () => {
         endpoint: 'ce-button.json',
       },
       {
-        componentName: 'Ceinput',
-        tagName: 'ce-input-field',
+        componentName: 'CeInput',
+        tagName: 'ce-input',
         description: 'Input',
         props: '',
         category: 'form' as const,
@@ -57,8 +57,8 @@ describe('extractUsedDsComponents', () => {
 
     const available = [
       {
-        componentName: 'Ceinput',
-        tagName: 'ce-input-field',
+        componentName: 'CeInput',
+        tagName: 'ce-input',
         description: 'Input',
         props: '',
         category: 'form' as const,
@@ -66,11 +66,11 @@ describe('extractUsedDsComponents', () => {
       },
     ];
 
-    const template = '<form><ce-input-field label="Nome" /></form>';
+    const template = '<form><ce-input label="Nome" /></form>';
     const used = extractUsedDsComponents(template, available);
 
     expect(used).toHaveLength(1);
-    expect(used[0].tagName).toBe('ce-input-field');
+    expect(used[0].tagName).toBe('ce-input');
   });
 
   it('returns empty array when no DS components are used', async () => {
@@ -108,8 +108,8 @@ describe('buildScriptSetup', () => {
         endpoint: 'ce-button.json',
       },
       {
-        componentName: 'Ceinput',
-        tagName: 'ce-input-field',
+        componentName: 'CeInput',
+        tagName: 'ce-input',
         description: 'Input',
         props: '',
         category: 'form' as const,
@@ -122,7 +122,7 @@ describe('buildScriptSetup', () => {
     expect(script).toContain('<script setup lang="ts">');
     expect(script).toContain('@comercti/vue-components');
     expect(script).toContain('CeButton');
-    expect(script).toContain('Ceinput');
+    expect(script).toContain('CeInput');
     expect(script).toContain('</script>');
   });
 
