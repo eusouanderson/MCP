@@ -14,7 +14,14 @@ vi.mock('../../llm/llm-client.js', () => ({
   generateTemplate: vi.fn().mockResolvedValue('<template><div>Hello World</div></template>'),
 }));
 
+vi.mock('../../ds/resolver.js', () => ({
+  fetchDsComponents: vi.fn(),
+  extractUsedDsComponents: vi.fn(),
+  buildScriptSetup: vi.fn(),
+}));
+
 import { mkdir, readFile } from 'node:fs/promises';
+import { buildScriptSetup, extractUsedDsComponents, fetchDsComponents } from '../../ds/resolver.js';
 import { generateTemplate } from '../../llm/llm-client.js';
 import { runPipeline } from '../pipeline.js';
 
@@ -28,6 +35,28 @@ describe('runPipeline', () => {
   beforeEach(() => {
     vi.mocked(readFile).mockResolvedValue(
       JSON.stringify({ title: 'Test SDD', components: [] }) as any
+    );
+    vi.mocked(fetchDsComponents).mockResolvedValue([
+      {
+        componentName: 'CeInput',
+        tagName: 'ce-input',
+        description: 'input',
+        props: 'label?: string',
+        category: 'form',
+        endpoint: 'ce-input-field.json',
+      },
+      {
+        componentName: 'CeButton',
+        tagName: 'ce-button',
+        description: 'button',
+        props: 'variant?: string',
+        category: 'form',
+        endpoint: 'ce-button.json',
+      },
+    ] as any);
+    vi.mocked(extractUsedDsComponents).mockReturnValue([] as any);
+    vi.mocked(buildScriptSetup).mockReturnValue(
+      '<script setup lang="ts">\nimport { CeInput } from \"@comercti/vue-components\"\n</script>'
     );
   });
 
@@ -128,6 +157,104 @@ describe('runPipeline', () => {
     expect(vi.mocked(writeFile)).toHaveBeenCalledWith(
       expect.any(String),
       '<template>\n<div>Only Template</div>\n</template>\n',
+      'utf8'
+    );
+  });
+
+  it('loads DS components and reports progress when design system mode is enabled', async () => {
+    const progress: string[] = [];
+
+    await runPipeline({
+      ...BASE_OPTIONS,
+      useDesignSystem: true,
+      hooks: {
+        onProgress: (msg) => progress.push(msg),
+      },
+    });
+
+    expect(progress).toContain('Buscando componentes do design system...');
+    expect(vi.mocked(fetchDsComponents)).toHaveBeenCalledWith(['form', 'icon', 'feedback']);
+  });
+
+  it('normalizes legacy DS aliases even when DS catalog is empty', async () => {
+    vi.mocked(fetchDsComponents).mockResolvedValueOnce([] as any);
+    vi.mocked(generateTemplate).mockResolvedValueOnce(
+      '<template><CeInputField /><Ceinput /></template>'
+    );
+
+    const result = await runPipeline({ ...BASE_OPTIONS, useDesignSystem: true });
+
+    expect(result.template).toContain('<CeInput />');
+    expect(result.template).not.toContain('CeInputField');
+    expect(result.template).not.toContain('Ceinput');
+  });
+
+  it('retries with DS reinforcement when first pass has no DS usage and builds script from used components', async () => {
+    const progress: string[] = [];
+
+    vi.mocked(generateTemplate)
+      .mockResolvedValueOnce('<template><div>No DS</div></template>')
+      .mockResolvedValueOnce('<template><CeInputField /><CeBadge>ok</CeBadge></template>');
+
+    vi.mocked(extractUsedDsComponents).mockImplementation((template) => {
+      if (template.includes('ce-input')) {
+        return [
+          {
+            componentName: 'CeInput',
+            tagName: 'ce-input',
+            description: 'input',
+            props: '',
+            category: 'form',
+            endpoint: 'ce-input-field.json',
+          },
+        ] as any;
+      }
+      return [] as any;
+    });
+
+    const result = await runPipeline({
+      ...BASE_OPTIONS,
+      useDesignSystem: true,
+      hooks: { onProgress: (msg) => progress.push(msg) },
+    });
+
+    expect(vi.mocked(generateTemplate)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(generateTemplate).mock.calls[1]?.[0]).toContain('ATENCAO FINAL (OBRIGATORIO)');
+    expect(progress).toContain(
+      'Primeira resposta sem componentes DS detectados. Reforcando prompt e tentando novamente...'
+    );
+    expect(result.template).toContain('<ce-input />');
+    expect(result.template).toContain('<ce-badge>ok</ce-badge>');
+    expect(vi.mocked(buildScriptSetup)).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses LLM script imports when response already includes @comercti imports', async () => {
+    const { writeFile } = await import('node:fs/promises');
+
+    vi.mocked(generateTemplate).mockResolvedValueOnce(`
+<script setup lang="ts">
+import { CeButton } from '@comercti/vue-components'
+</script>
+<template><CeButton>Salvar</CeButton></template>
+`);
+
+    vi.mocked(extractUsedDsComponents).mockReturnValue([
+      {
+        componentName: 'CeButton',
+        tagName: 'ce-button',
+        description: 'button',
+        props: '',
+        category: 'form',
+        endpoint: 'ce-button.json',
+      },
+    ] as any);
+
+    await runPipeline({ ...BASE_OPTIONS, useDesignSystem: true });
+
+    expect(vi.mocked(buildScriptSetup)).not.toHaveBeenCalled();
+    expect(vi.mocked(writeFile)).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining("import { CeButton } from '@comercti/vue-components'"),
       'utf8'
     );
   });

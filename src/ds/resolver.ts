@@ -180,6 +180,7 @@ const buildScriptSetup = (usedComponents: DsComponentRef[]): string => {
 };
 
 export {
+  buildCompactRef,
   buildScriptSetup,
   endpointToComponentName,
   endpointToTagName,

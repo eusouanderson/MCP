@@ -1046,4 +1046,50 @@ describe('CLI index', () => {
       expect(mockRunPipeline).not.toHaveBeenCalled();
     });
   });
+
+  it('returns to main menu when design system selection is back', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', '__back__', 'exit');
+    inputQueue.push('./output');
+
+    mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
+    mockIsValidSvgPath.mockReturnValueOnce(true);
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Voltando ao menu principal')
+      );
+      expect(mockRunPipeline).not.toHaveBeenCalled();
+    });
+  });
+
+  it('runs pipeline with design system mode when user selects yes', async () => {
+    process.env.COPILOT_MODEL = 'gpt-5-mini';
+    selectQueue.push('generate', 'local', '/tmp/project/src/svg/icon.svg', 'yes');
+    inputQueue.push('./output');
+
+    mockListSvgFilesInDirectory.mockResolvedValueOnce(['/tmp/project/src/svg/icon.svg']);
+    mockIsValidSvgPath.mockReturnValueOnce(true);
+    mockRunPipeline.mockResolvedValueOnce({
+      outputFilePath: '/tmp/project/output/generated-template.vue',
+      assets: [{ name: 'Icon', path: 'src/svg/icon.svg' }],
+      template: '<div />',
+    });
+
+    await import('./index.js');
+
+    await vi.waitFor(() => {
+      expect(mockMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Modo Design System ativado: buscando componentes do @comercti/vue-components')
+      );
+      expect(mockRunPipeline).toHaveBeenCalledWith(
+        expect.objectContaining({ useDesignSystem: true })
+      );
+      expect(mockSuccess).toHaveBeenCalledWith(
+        expect.stringContaining('Template Vue gerado com sucesso')
+      );
+    });
+  });
 });

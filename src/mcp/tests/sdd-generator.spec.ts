@@ -105,4 +105,31 @@ describe('sdd-generator', () => {
     expect(mockMkdir).not.toHaveBeenCalled();
     expect(mockWriteFile).not.toHaveBeenCalled();
   });
+
+  it('treats missing src directory as empty while building initial SDD', async () => {
+    mockReadFile.mockResolvedValueOnce(JSON.stringify({ name: 'workspace' }));
+    mockReaddir
+      .mockResolvedValueOnce([{ name: 'README.md', isDirectory: () => false }])
+      .mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+
+    const sdd = await buildInitialSdd('/tmp/project');
+
+    expect(sdd.workspaceContext.rootEntries).toEqual(['README.md']);
+    expect(sdd.workspaceContext.srcEntries).toEqual([]);
+  });
+
+  it('uses fallback project defaults when package.json is missing', async () => {
+    mockReadFile.mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    mockReaddir
+      .mockResolvedValueOnce([{ name: 'src', isDirectory: () => true }])
+      .mockResolvedValueOnce([{ name: 'widgets', isDirectory: () => true }]);
+
+    const sdd = await buildInitialSdd('/tmp/project-name');
+
+    expect(sdd.componentContext?.purpose).toContain('project-name');
+    expect(sdd.workspaceContext.projectName).toBe('project-name');
+    expect(sdd.workspaceContext.projectVersion).toBe('0.0.0');
+    expect(sdd.workspaceContext.packageManager).toBe('unknown');
+    expect(sdd.workspaceContext.detectedStack).toEqual([]);
+  });
 });

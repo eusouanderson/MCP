@@ -95,4 +95,85 @@ describe('buildPrompt', () => {
     const prompt = buildPrompt(context);
     expect(prompt).toContain('"assetsCount": 2');
   });
+
+  it('includes DS-specific sections when DS components are available', () => {
+    const context = buildContext(
+      {
+        goal: ' ',
+      },
+      [],
+      [
+        {
+          componentName: 'CeInput',
+          tagName: 'ce-input',
+          description: 'Campo de texto',
+          props: 'label: string\nmodelValue: string',
+          category: 'form',
+          endpoint: 'ce-input-field.json',
+        },
+      ]
+    );
+
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('Regras para uso do design system');
+    expect(prompt).toContain('Design System disponivel (@comercti/vue-components)');
+    expect(prompt).toContain('- tag: <ce-input> | import: CeInput');
+    expect(prompt).toContain('Props: label: string modelValue: string');
+    expect(prompt).toContain('<script setup lang="ts">');
+    expect(prompt).toContain(
+      'Gerar somente o template Vue com base no SVG e no contexto visual do componente.'
+    );
+  });
+
+  it('ignores invalid additional instructions values', () => {
+    const context = buildContext(
+      {
+        generation: {
+          additionalLlmInstructions: [null, 123, '', '  ', 'Manter labels originais'],
+        },
+      } as any,
+      []
+    );
+
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('Manter labels originais');
+    expect(prompt).not.toContain('- 2.');
+  });
+
+  it('uses trimmed goal when SDD provides a non-empty value', () => {
+    const context = buildContext(
+      {
+        goal: '  Renderizar card de resumo com fidelidade  ',
+      },
+      []
+    );
+
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('Renderizar card de resumo com fidelidade');
+  });
+
+  it('keeps DS section empty when DS array becomes empty during section build', () => {
+    const volatileDs = new Proxy([] as any[], {
+      get(target, prop, receiver) {
+        if (prop === 'length') {
+          volatileDs.__reads = (volatileDs.__reads ?? 0) + 1;
+          return volatileDs.__reads === 1 ? 1 : 0;
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }) as any;
+
+    const context = {
+      ...buildContext({}, []),
+      dsComponents: volatileDs,
+    } as any;
+
+    const prompt = buildPrompt(context);
+
+    expect(prompt).toContain('Regras para uso do design system');
+    expect(prompt).not.toContain('Design System disponivel (@comercti/vue-components)');
+  });
 });

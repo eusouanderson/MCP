@@ -1,0 +1,9 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "command": {
+    "mcp-frontend": {
+      "description": "Gera templates Vue 3 a partir de designs do Figma",
+      "template": "Vou executar o MCP_Frontend CLI para gerar um template Vue a partir de um design do Figma.\n\nO CLI é interativo e irá guiá-lo através do processo:\n1. Escolher fonte (SVG local ou Figma URL)\n2. Configurar opções de geração\n3. Decidir sobre uso do Design System\n\nExecutando o CLI:\n!`node dist/mcp-frontend.cjs`\n\nApós a conclusão, os arquivos gerados estarão em:\n- Templates Vue: output/\n- SVGs processados: src/svg/\n- Metadados Figma: src/svg/*.figma.json"
+    }
+  }
+}

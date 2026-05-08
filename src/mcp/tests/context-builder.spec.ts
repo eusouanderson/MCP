@@ -281,4 +281,66 @@ describe('buildContext', () => {
     );
     expect(designInfo?.typography?.length).toBe(2);
   });
+
+  it('defaults texts and typography to empty arrays when designInfo lacks those fields', () => {
+    let typographyReads = 0;
+    const designInfo: any = {
+      colors: ['#000000'],
+      layout: {
+        mode: 'HORIZONTAL',
+        gap: 0,
+        cornerRadius: 0,
+        padding: { left: 0, right: 0, top: 0, bottom: 0 },
+      },
+      styleRefs: {},
+    };
+
+    Object.defineProperty(designInfo, 'typography', {
+      get() {
+        typographyReads += 1;
+        return typographyReads === 1 ? undefined : [];
+      },
+      enumerable: true,
+      configurable: true,
+    });
+
+    const context = buildContext({}, [
+      {
+        name: 'missing-fields',
+        path: 'missing-fields.svg',
+        designInfo,
+      },
+    ]);
+
+    const filteredDesignInfo = context.assets[0].designInfo as any;
+
+    expect(filteredDesignInfo.texts).toEqual([]);
+    expect(filteredDesignInfo.typography).toEqual([]);
+  });
+
+  it('handles null and undefined typography in designInfo', () => {
+    const assets = [
+      {
+        name: 'undefined-typography',
+        path: 'undefined-typography.svg',
+        designInfo: {
+          texts: ['Some text'],
+          colors: ['#000000'],
+          layout: {
+            mode: 'HORIZONTAL',
+            gap: 0,
+            cornerRadius: 0,
+            padding: { left: 0, right: 0, top: 0, bottom: 0 },
+          },
+          styleRefs: {},
+        } as any,
+      },
+    ];
+
+    const context = buildContext({}, assets);
+    const designInfo = context.assets[0].designInfo as any;
+
+    expect(designInfo.texts).toEqual(['Some text']);
+    expect(designInfo.typography).toEqual([]);
+  });
 });

@@ -2039,4 +2039,711 @@ describe('downloadFigmaSvgs', () => {
     // Should continue with Icon name since nodes fetch failed
     expect(assets[0].name).toBe('Icon');
   });
+
+  it('normalizes node-id with hyphens to colons (line 37)', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                '1150:16805': {
+                  document: {
+                    id: '1150:16805',
+                    name: 'Icon',
+                    type: 'VECTOR',
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: '1150:16805', name: 'Icon', type: 'VECTOR', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { '1150:16805': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    // URL with node-id using hyphens (will be normalized to colons)
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=1150-16805',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].name).toBe('Icon');
+  });
+
+  it('extracts INSTANCE components (lines 156-159)', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'F:1': {
+                  document: {
+                    id: 'F:1',
+                    name: 'Frame',
+                    type: 'FRAME',
+                    children: [
+                      {
+                        id: 'I:1',
+                        name: 'Button',
+                        type: 'INSTANCE',
+                        children: [],
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'F:1', name: 'Frame', type: 'FRAME', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'F:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=F-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.components).toBeDefined();
+    expect(assets[0].designInfo?.components).toHaveLength(1);
+    expect(assets[0].designInfo?.components?.[0].type).toBe('INSTANCE');
+    expect(assets[0].designInfo?.components?.[0].name).toBe('Button');
+  });
+
+  it('extracts boundVariables (lines 166-167)', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'F:1': {
+                  document: {
+                    id: 'F:1',
+                    name: 'Frame',
+                    type: 'FRAME',
+                    boundVariables: {
+                      fills: [{ id: 'var:1' }],
+                      paddingTop: { id: 'var:2' },
+                    },
+                    children: [
+                      {
+                        id: 'R:1',
+                        name: 'Rectangle',
+                        type: 'RECTANGLE',
+                        boundVariables: {
+                          strokeWeight: { id: 'var:3' },
+                        },
+                        children: [],
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [
+                      {
+                        id: 'F:1',
+                        name: 'Frame',
+                        type: 'FRAME',
+                        children: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'F:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=F-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.boundVariables?.designTokens).toBeDefined();
+    expect(assets[0].designInfo?.boundVariables?.designTokens).toContain('fills');
+    expect(assets[0].designInfo?.boundVariables?.designTokens).toContain('paddingTop');
+    expect(assets[0].designInfo?.boundVariables?.designTokens).toContain('strokeWeight');
+  });
+
+  it('extracts strokes information', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'R:1': {
+                  document: {
+                    id: 'R:1',
+                    name: 'Rectangle',
+                    type: 'RECTANGLE',
+                    strokes: [
+                      {
+                        type: 'SOLID',
+                        color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
+                        opacity: 0.8,
+                      },
+                    ],
+                    strokeWeight: 2,
+                    strokeAlign: 'INSIDE',
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'R:1', name: 'Rectangle', type: 'RECTANGLE', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'R:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=R-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.strokes).toBeDefined();
+    expect(assets[0].designInfo?.strokes).toHaveLength(1);
+    expect(assets[0].designInfo?.strokes?.[0].strokeWeight).toBe(2);
+    expect(assets[0].designInfo?.strokes?.[0].strokeAlign).toBe('INSIDE');
+  });
+
+  it('extracts effects information', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'F:1': {
+                  document: {
+                    id: 'F:1',
+                    name: 'Frame',
+                    type: 'FRAME',
+                    effects: [
+                      {
+                        type: 'DROP_SHADOW',
+                        visible: true,
+                        blendMode: 'NORMAL',
+                      },
+                      {
+                        type: 'INNER_SHADOW',
+                        visible: false,
+                        blendMode: 'MULTIPLY',
+                      },
+                    ],
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'F:1', name: 'Frame', type: 'FRAME', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'F:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=F-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.effects).toBeDefined();
+    expect(assets[0].designInfo?.effects).toHaveLength(2);
+    expect(assets[0].designInfo?.effects?.[0].type).toBe('DROP_SHADOW');
+    expect(assets[0].designInfo?.effects?.[0].visible).toBe(true);
+    expect(assets[0].designInfo?.effects?.[1].type).toBe('INNER_SHADOW');
+    expect(assets[0].designInfo?.effects?.[1].visible).toBe(false);
+  });
+
+  it('extracts colors with transparency (alpha < 1)', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'R:1': {
+                  document: {
+                    id: 'R:1',
+                    name: 'Rectangle',
+                    type: 'RECTANGLE',
+                    fills: [
+                      {
+                        type: 'SOLID',
+                        color: { r: 1, g: 0, b: 0, a: 0.5 },
+                        opacity: 1,
+                      },
+                    ],
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'R:1', name: 'Rectangle', type: 'RECTANGLE', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'R:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=R-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.fill?.color).toMatch(/^#ff000080$/i);
+    expect(assets[0].designInfo?.colors).toContain(assets[0].designInfo?.fill?.color);
+  });
+
+  it('extracts layout with padding and layoutMode', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'F:1': {
+                  document: {
+                    id: 'F:1',
+                    name: 'Frame',
+                    type: 'FRAME',
+                    layoutMode: 'HORIZONTAL',
+                    paddingTop: 10,
+                    paddingBottom: 20,
+                    paddingLeft: 15,
+                    paddingRight: 25,
+                    itemSpacing: 8,
+                    cornerRadius: 12,
+                    primaryAxisAlignItems: 'CENTER',
+                    counterAxisAlignItems: 'STRETCH',
+                    absoluteBoundingBox: { x: 0, y: 0, width: 200, height: 100 },
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'F:1', name: 'Frame', type: 'FRAME', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'F:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=F-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.layout?.mode).toBe('HORIZONTAL');
+    expect(assets[0].designInfo?.layout?.padding).toEqual({
+      top: 10,
+      bottom: 20,
+      left: 15,
+      right: 25,
+    });
+    expect(assets[0].designInfo?.layout?.gap).toBe(8);
+    expect(assets[0].designInfo?.layout?.cornerRadius).toBe(12);
+    expect(assets[0].designInfo?.layout?.width).toBe(200);
+    expect(assets[0].designInfo?.layout?.height).toBe(100);
+  });
+
+  it('extracts COMPONENT type (not just INSTANCE)', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'C:1': {
+                  document: {
+                    id: 'C:1',
+                    name: 'MainButton',
+                    type: 'COMPONENT',
+                    componentProperties: {
+                      variant: { type: 'TEXT', value: 'primary' },
+                    },
+                    children: [],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'C:1', name: 'MainButton', type: 'COMPONENT', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'C:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=C-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.components).toBeDefined();
+    expect(assets[0].designInfo?.components?.[0].type).toBe('COMPONENT');
+    expect(assets[0].designInfo?.components?.[0].name).toBe('MainButton');
+  });
+
+  it('handles node with IMAGE fill type', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [
+                      {
+                        id: 'R:1',
+                        name: 'ImageRect',
+                        type: 'RECTANGLE',
+                        fills: [{ type: 'IMAGE', imageRef: 'img123' }],
+                        children: [],
+                      },
+                    ],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'R:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test',
+    });
+
+    expect(assets.length).toBeGreaterThan(0);
+    const imageAsset = assets.find((a) => a.name === 'Imagerect');
+    expect(imageAsset).toBeDefined();
+  });
+
+  it('handles nodes without name (fallback to Root)', async () => {
+    const svgContent = '<svg><rect/></svg>';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/nodes')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              nodes: {
+                'F:1': {
+                  document: {
+                    id: 'F:1',
+                    name: '',
+                    type: 'FRAME',
+                    children: [
+                      {
+                        id: 'C:1',
+                        name: 'Child',
+                        type: 'RECTANGLE',
+                        children: [],
+                      },
+                    ],
+                  },
+                },
+              },
+            }),
+          });
+        }
+        if (url.includes('/files/ABC123XYZ')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              document: {
+                id: '0:0',
+                name: 'Document',
+                type: 'DOCUMENT',
+                children: [
+                  {
+                    id: '1:0',
+                    name: 'Page',
+                    type: 'CANVAS',
+                    children: [{ id: 'F:1', name: '', type: 'FRAME', children: [] }],
+                  },
+                ],
+              },
+            }),
+          });
+        }
+        if (url.includes('/images/')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ images: { 'F:1': 'https://cdn.figma.com/test.svg' } }),
+          });
+        }
+        return Promise.resolve({ ok: true, text: async () => svgContent });
+      })
+    );
+
+    const assets = await downloadFigmaSvgs({
+      figmaUrl: 'https://www.figma.com/file/ABC123XYZ/Test?node-id=F-1',
+    });
+
+    expect(assets).toHaveLength(1);
+    expect(assets[0].designInfo?.componentHierarchy?.name).toBe('Root');
+    expect(assets[0].designInfo?.componentHierarchy?.children).toHaveLength(1);
+  });
 });

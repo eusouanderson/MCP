@@ -129,11 +129,13 @@ const toTailwindHints = (asset: FigmaAsset) => {
     colorClasses.add(`border-[${color}]`);
   }
 
-  for (const typo of design.typography.slice(0, 8)) {
-    const size = textSizeClass(typo.fontSize);
-    const weight = fontWeightClass(typo.fontWeight);
-    if (size) typographyClasses.add(size);
-    if (weight) typographyClasses.add(weight);
+  if (design.typography && Array.isArray(design.typography)) {
+    for (const typo of design.typography.slice(0, 8)) {
+      const size = textSizeClass(typo.fontSize);
+      const weight = fontWeightClass(typo.fontWeight);
+      if (size) typographyClasses.add(size);
+      if (weight) typographyClasses.add(weight);
+    }
   }
 
   const styleRefKeys = Object.keys(design.styleRefs);
