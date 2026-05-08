@@ -3,7 +3,19 @@
   "command": {
     "mcp-frontend": {
       "description": "Gera templates Vue 3 a partir de designs do Figma",
-      "template": "Vou executar o MCP_Frontend CLI para gerar um template Vue a partir de um design do Figma.\n\nO CLI é interativo e irá guiá-lo através do processo:\n1. Escolher fonte (SVG local ou Figma URL)\n2. Configurar opções de geração\n3. Decidir sobre uso do Design System\n\nExecutando o CLI:\n!`node dist/mcp-frontend.cjs`\n\nApós a conclusão, os arquivos gerados estarão em:\n- Templates Vue: output/\n- SVGs processados: src/svg/\n- Metadados Figma: src/svg/*.figma.json"
+      "template": "Vou usar as ferramentas do MCP_Frontend para gerar um componente Vue.\n\n**Opções disponíveis:**\n\n1. **Gerar do Figma:** Use a tool `mcp-generate-from-figma` com uma URL do Figma\n2. **Gerar de SVG local:** Use a tool `mcp-generate-from-svg` com caminho para um SVG\n\n**Recursos:**\n- Alta fidelidade ao design original\n- Extração automática de cores e design tokens\n- Mapeamento para TailwindCSS\n- Suporte a Design System (@comercti/vue-components)\n\n**Exemplo de uso:**\n\nPara gerar do Figma:\n```\nUse mcp-generate-from-figma com:\n- figmaUrl: [URL do Figma]\n- useDesignSystem: true/false\n```\n\nPara gerar de SVG local:\n```\nUse mcp-generate-from-svg com:\n- svgFilePath: src/svg/design.svg\n- useDesignSystem: true/false\n```\n\n$ARGUMENTS"
+    },
+    "figma-to-vue": {
+      "description": "Atalho: Gera componente Vue do Figma (com DS)",
+      "template": "Vou gerar um componente Vue a partir do design do Figma.\n\nUse a tool `mcp-generate-from-figma` com:\n- figmaUrl: $1\n- useDesignSystem: true\n- outputFileName: $2"
+    },
+    "svg-to-vue": {
+      "description": "Atalho: Gera componente Vue de SVG local",
+      "template": "Vou gerar um componente Vue a partir do SVG local.\n\nUse a tool `mcp-generate-from-svg` com:\n- svgFilePath: $1\n- useDesignSystem: ${2:false}\n- outputFileName: $3"
     }
-  }
+  },
+  "plugin": [
+    ".opencode/plugins/mcp-frontend-auth.ts",
+    ".opencode/plugins/mcp-frontend.ts"
+  ]
 }
