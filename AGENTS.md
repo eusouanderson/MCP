@@ -1,5 +1,45 @@
 # MCP_Frontend - Guia para Agentes de IA
 
+## ⚡ Plugin OpenCode
+
+**IMPORTANTE**: Este projeto agora funciona como um **plugin nativo do OpenCode**!
+
+### Uso Direto pelo OpenCode
+
+O OpenCode pode usar o MCP_Frontend de duas formas:
+
+1. **Via Custom Tools (Recomendado)**:
+   - `mcp-generate-from-figma` - Gera componente Vue do Figma
+   - `mcp-generate-from-svg` - Gera componente Vue de SVG local
+
+2. **Via Comandos Customizados**:
+   - `/mcp-frontend` - Menu de ajuda
+   - `/figma-to-vue <url> [nome]` - Atalho para Figma
+   - `/svg-to-vue <path> [nome]` - Atalho para SVG
+
+### Quando Usar
+
+O OpenCode deve invocar estas tools quando o usuário:
+- Mencionar "Figma" + "componente Vue"
+- Solicitar conversão de design para código
+- Querer gerar template Vue com alta fidelidade
+- Pedir para usar o Design System @comercti/vue-components
+
+### Exemplo de Uso
+
+```
+Usuário: "Gere um componente Vue deste design do Figma: https://figma.com/file/abc"
+
+OpenCode: [Invoca mcp-generate-from-figma com a URL]
+→ Componente gerado automaticamente
+→ Sem necessidade de login separado
+→ Usa tokens já configurados no ambiente
+```
+
+**Documentação completa**: Ver `PLUGIN-OPENCODE.md`
+
+---
+
 ## Visão Geral do Projeto
 
 Este é um projeto CLI chamado **MCP_Frontend** que gera templates Vue 3 de alta fidelidade a partir de designs do Figma. O projeto implementa um protocolo de contexto customizado para geração de código usando LLMs.
